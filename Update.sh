@@ -33,18 +33,6 @@ fi
 
 echo ""
 echo "----------------------------------------------------"
-echo "Mise à niveau complète du système (full-upgrade)..."
-echo "Ceci peut supprimer des paquets si nécessaire."
-echo "----------------------------------------------------"
-apt full-upgrade -y
-
-# Vérifier si la mise à niveau complète a réussi
-if [ $? -ne 0 ]; then
-  echo "Erreur lors de la mise à niveau complète du système. Tentative de continuer..." >&2
-fi
-
-echo ""
-echo "----------------------------------------------------"
 echo "Suppression des paquets inutiles (autoremove)..."
 echo "----------------------------------------------------"
 apt autoremove -y
