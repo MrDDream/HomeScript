@@ -51,20 +51,6 @@ echo "Global PUID: ${GLOBAL_PUID}"
 echo "Global PGID: ${GLOBAL_PGID}"
 echo "Global TZ: ${GLOBAL_TZ}"
 echo "---------------------------------------"
-echo "--- Using Global Volume Paths ---"
-echo "App Data Base Path: ${APP_DATA_BASE_PATH}"
-echo "Emby Config Path: ${CONFIG_EMBY_PATH}"
-echo "Jellyseerr Config Path: ${CONFIG_JELLYSEERR_PATH}"
-echo "Lidarr Config Path: ${CONFIG_LIDARR_PATH}"
-echo "Prowlarr Config Path: ${CONFIG_PROWLARR_PATH}"
-echo "QbitTorrent Config Path: ${CONFIG_QBITTORRENT_PATH}"
-echo "Radarr Config Path: ${CONFIG_RADARR_PATH}"
-echo "Sonarr Config Path: ${CONFIG_SONARR_PATH}"
-echo "Media TV Shows Path: ${MEDIA_TV_SHOWS_PATH}"
-echo "Media Movies Path: ${MEDIA_MOVIES_PATH}"
-echo "Media Music Path: ${MEDIA_MUSIC_PATH}"
-echo "Downloads Path: ${DOWNLOADS_PATH}"
-echo "---------------------------------------"
 echo ""
 
 # Make sure Docker and Docker Compose (or 'docker compose') are installed.
@@ -110,9 +96,9 @@ services:
       - PGID=${GLOBAL_PGID}
       - TZ=${GLOBAL_TZ}
     volumes:
-      - ${CONFIG_EMBY_PATH}:/config # Configuration directory
-      - ${MEDIA_TV_SHOWS_PATH}:/mnt/tvshows # Media directory for TV Shows
-      - ${MEDIA_MOVIES_PATH}:/mnt/movies # Media directory for Movies
+      - /path/to/programdata:/config # Configuration directory
+      - /path/to/tvshows:/mnt/share1 # Media directory
+      - /path/to/movies:/mnt/share2 # Media directory
     ports:
       - 8096:8096 # HTTP port
       - 8920:8920 # HTTPS port
@@ -237,9 +223,11 @@ services:
       - PGID=${GLOBAL_PGID}
       - TZ=${GLOBAL_TZ}
     volumes:
-      - ${CONFIG_RADARR_PATH}:/config
-      - ${MEDIA_MOVIES_PATH}:/movies
-      - ${DOWNLOADS_PATH}:/downloads
+      - /srv/dev-disk-by-uuid-0ce40828-c600-4609-b901-41d606e75f56/0.Configurations/Radarr:/config
+      - /srv/dev-disk-by-uuid-0ce40828-c600-4609-b901-41d606e75f56/1.Films:/movies #optional
+      - /srv/dev-disk-by-uuid-0ce40828-c600-4609-b901-41d606e75f56/3.Animations:/animations
+      - /srv/dev-disk-by-uuid-0ce40828-c600-4609-b901-41d606e75f56/5.Torrents/:/downloads #optional
+      - /srv/dev-disk-by-uuid-0ce40828-c600-4609-b901-41d606e75f56/0.Configurations/0.Scripts/TMM:/scripts #chmod +x /scripts/update_movie.sh && chmod 755 /scripts
     ports:
       - 7878:7878
     restart: unless-stopped
@@ -262,9 +250,10 @@ services:
       - PGID=${GLOBAL_PGID}
       - TZ=${GLOBAL_TZ}
     volumes:
-      - ${CONFIG_SONARR_PATH}:/config
-      - ${MEDIA_TV_SHOWS_PATH}:/tv
-      - ${DOWNLOADS_PATH}:/downloads
+      - /srv/dev-disk-by-uuid-0ce40828-c600-4609-b901-41d606e75f56/0.Configurations/Sonarr:/config
+      - /srv/dev-disk-by-uuid-0ce40828-c600-4609-b901-41d606e75f56/2.Séries:/tv #optional
+      - /srv/dev-disk-by-uuid-0ce40828-c600-4609-b901-41d606e75f56/5.Torrents:/downloads #optional
+      - /srv/dev-disk-by-uuid-0ce40828-c600-4609-b901-41d606e75f56/0.Configurations/0.Scripts/TMM:/scripts #chmod +x /scripts/update_tvshow.sh && chmod 755 /scripts
     ports:
       - 8989:8989
     restart: unless-stopped
