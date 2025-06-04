@@ -22,33 +22,30 @@ GLOBAL_TZ="Europe/Paris" # Example: "America/New_York", "Asia/Tokyo", "Etc/UTC"
 # All other paths can be relative to this, or defined absolutely.
 # Example: "/srv/your_drive/docker_data" or "/mnt/storage/docker"
 # If using the UUID path from the original script, ensure this drive is always mounted at the same point.
-APP_DATA_BASE_PATH="/srv/dev-disk-by-uuid-0ce40828-c600-4609-b901-41d606e75f56" # MODIFY THIS TO YOUR MAIN DATA DIRECTORY
+APP_DATA_BASE_PATH="/srv/dev-disk-by-uuid-0ce" # MODIFY THIS TO YOUR MAIN DATA DIRECTORY
 
 # Configuration Paths
 # For Emby, original was /path/to/programdata. Adjust if ${APP_DATA_BASE_PATH}/emby_config is not suitable.
 CONFIG_EMBY_PATH="${APP_DATA_BASE_PATH}/emby_config"
-CONFIG_JELLYSEERR_PATH="${APP_DATA_BASE_PATH}/0.Configurations/Jellyseerr"
+CONFIG_JELLYSEERR_PATH="${APP_DATA_BASE_PATH}/Configurations/Jellyseerr"
 # For Lidarr, original was /<host_folder_config>. Adjust if ${APP_DATA_BASE_PATH}/0.Configurations/Lidarr is not suitable.
-CONFIG_LIDARR_PATH="${APP_DATA_BASE_PATH}/0.Configurations/Lidarr"
-CONFIG_PROWLARR_PATH="${APP_DATA_BASE_PATH}/0.Configurations/Prowlarr"
-CONFIG_QBITTORRENT_PATH="${APP_DATA_BASE_PATH}/0.Configurations/QbitTorrent"
-CONFIG_RADARR_PATH="${APP_DATA_BASE_PATH}/0.Configurations/Radarr"
-CONFIG_SONARR_PATH="${APP_DATA_BASE_PATH}/0.Configurations/Sonarr"
+CONFIG_LIDARR_PATH="${APP_DATA_BASE_PATH}/Configurations/Lidarr"
+CONFIG_PROWLARR_PATH="${APP_DATA_BASE_PATH}/Configurations/Prowlarr"
+CONFIG_QBITTORRENT_PATH="${APP_DATA_BASE_PATH}/Configurations/QbitTorrent"
+CONFIG_RADARR_PATH="${APP_DATA_BASE_PATH}/Configurations/Radarr"
+CONFIG_SONARR_PATH="${APP_DATA_BASE_PATH}/Configurations/Sonarr"
 
 # Media Paths
 # For Emby TV, original was /path/to/tvshows.
-MEDIA_TV_SHOWS_PATH="${APP_DATA_BASE_PATH}/2.Séries"
+MEDIA_TV_SHOWS_PATH="${APP_DATA_BASE_PATH}/Tvshows"
 # For Emby Movies, original was /path/to/movies.
-MEDIA_MOVIES_PATH="${APP_DATA_BASE_PATH}/1.Films"
-MEDIA_ANIMATIONS_PATH="${APP_DATA_BASE_PATH}/3.Animations"
+MEDIA_MOVIES_PATH="${APP_DATA_BASE_PATH}/Movies"
 # For Lidarr music, original was /<host_folder_data>. This path will be mapped to /data in Lidarr.
-MEDIA_MUSIC_PATH="${APP_DATA_BASE_PATH}/music" # Or, e.g., "${APP_DATA_BASE_PATH}/4.Musique"
+MEDIA_MUSIC_PATH="${APP_DATA_BASE_PATH}/Music" # Or, e.g., "${APP_DATA_BASE_PATH}/Music"
 
 # Downloads Path
-DOWNLOADS_PATH="${APP_DATA_BASE_PATH}/5.Torrents"
+DOWNLOADS_PATH="${APP_DATA_BASE_PATH}/Torrents"
 
-# Scripts Path (if used by Radarr/Sonarr)
-TMM_SCRIPTS_PATH="${APP_DATA_BASE_PATH}/0.Configurations/0.Scripts/TMM"
 
 echo "--- Using Global Values ---"
 echo "Global PUID: ${GLOBAL_PUID}"
@@ -66,10 +63,8 @@ echo "Radarr Config Path: ${CONFIG_RADARR_PATH}"
 echo "Sonarr Config Path: ${CONFIG_SONARR_PATH}"
 echo "Media TV Shows Path: ${MEDIA_TV_SHOWS_PATH}"
 echo "Media Movies Path: ${MEDIA_MOVIES_PATH}"
-echo "Media Animations Path: ${MEDIA_ANIMATIONS_PATH}"
 echo "Media Music Path: ${MEDIA_MUSIC_PATH}"
 echo "Downloads Path: ${DOWNLOADS_PATH}"
-echo "TMM Scripts Path: ${TMM_SCRIPTS_PATH}"
 echo "---------------------------------------"
 echo ""
 
@@ -105,8 +100,8 @@ cat << EOF > emby.yaml
 version: "2.3"
 services:
   emby:
-    image: emby/embyserver
-    container_name: embyserver
+    image: emby/embyserver:latest
+    container_name: EmbyServer
     labels:
       - com.centurylinklabs.watchtower.enable=true
     runtime: nvidia # Expose NVIDIA GPUs
@@ -117,8 +112,8 @@ services:
       - TZ=${GLOBAL_TZ}
     volumes:
       - ${CONFIG_EMBY_PATH}:/config # Configuration directory
-      - ${MEDIA_TV_SHOWS_PATH}:/mnt/share1 # Media directory for TV Shows
-      - ${MEDIA_MOVIES_PATH}:/mnt/share2 # Media directory for Movies
+      - ${MEDIA_TV_SHOWS_PATH}:/mnt/tvshows # Media directory for TV Shows
+      - ${MEDIA_MOVIES_PATH}:/mnt/movies # Media directory for Movies
     ports:
       - 8096:8096 # HTTP port
       - 8920:8920 # HTTPS port
@@ -159,8 +154,8 @@ echo "Creating lidarr.yaml and launching the Lidarr service..."
 cat << EOF > lidarr.yaml
 services:
   lidarr:
-    container_name: lidarr
-    image: ghcr.io/hotio/lidarr
+    image: ghcr.io/hotio/lidarr:latest
+    container_name: Lidarr
     labels:
       - com.centurylinklabs.watchtower.enable=true
     ports:
