@@ -14,10 +14,56 @@ GLOBAL_PUID=1000
 GLOBAL_PGID=1000
 GLOBAL_TZ="Europe/Paris" # Example: "America/New_York", "Asia/Tokyo", "Etc/UTC"
 
+# --- Global Volume Paths ---
+# Modify these paths according to your directory structure.
+# It's recommended to use absolute paths.
+
+# General base path for your Docker configurations and data.
+# All other paths can be relative to this, or defined absolutely.
+# Example: "/srv/your_drive/docker_data" or "/mnt/storage/docker"
+# If using the UUID path from the original script, ensure this drive is always mounted at the same point.
+APP_DATA_BASE_PATH="/srv/dev-" # MODIFY THIS TO YOUR MAIN DATA DIRECTORY
+
+# Configuration Paths
+# For Emby, original was /path/to/programdata. Adjust if ${APP_DATA_BASE_PATH}/emby_config is not suitable.
+CONFIG_EMBY_PATH="${APP_DATA_BASE_PATH}/emby_config"
+CONFIG_JELLYSEERR_PATH="${APP_DATA_BASE_PATH}/Configurations/Jellyseerr"
+# For Lidarr, original was /<host_folder_config>. Adjust if ${APP_DATA_BASE_PATH}/0.Configurations/Lidarr is not suitable.
+CONFIG_LIDARR_PATH="${APP_DATA_BASE_PATH}/Configurations/Lidarr"
+CONFIG_PROWLARR_PATH="${APP_DATA_BASE_PATH}/Configurations/Prowlarr"
+CONFIG_QBITTORRENT_PATH="${APP_DATA_BASE_PATH}/Configurations/QbitTorrent"
+CONFIG_RADARR_PATH="${APP_DATA_BASE_PATH}/Configurations/Radarr"
+CONFIG_SONARR_PATH="${APP_DATA_BASE_PATH}/Configurations/Sonarr"
+
+# Media Paths
+# For Emby TV, original was /path/to/tvshows.
+MEDIA_TV_SHOWS_PATH="${APP_DATA_BASE_PATH}/Tvshows"
+# For Emby Movies, original was /path/to/movies.
+MEDIA_MOVIES_PATH="${APP_DATA_BASE_PATH}/Movies"
+# For Lidarr music, original was /<host_folder_data>. This path will be mapped to /data in Lidarr.
+MEDIA_MUSIC_PATH="${APP_DATA_BASE_PATH}/Music" # Or, e.g., "${APP_DATA_BASE_PATH}/4.Musique"
+
+# Downloads Path
+DOWNLOADS_PATH="${APP_DATA_BASE_PATH}/Torrents"
+
 echo "--- Using Global Values ---"
 echo "Global PUID: ${GLOBAL_PUID}"
 echo "Global PGID: ${GLOBAL_PGID}"
 echo "Global TZ: ${GLOBAL_TZ}"
+echo "---------------------------------------"
+echo "--- Using Global Volume Paths ---"
+echo "App Data Base Path: ${APP_DATA_BASE_PATH}"
+echo "Emby Config Path: ${CONFIG_EMBY_PATH}"
+echo "Jellyseerr Config Path: ${CONFIG_JELLYSEERR_PATH}"
+echo "Lidarr Config Path: ${CONFIG_LIDARR_PATH}"
+echo "Prowlarr Config Path: ${CONFIG_PROWLARR_PATH}"
+echo "QbitTorrent Config Path: ${CONFIG_QBITTORRENT_PATH}"
+echo "Radarr Config Path: ${CONFIG_RADARR_PATH}"
+echo "Sonarr Config Path: ${CONFIG_SONARR_PATH}"
+echo "Media TV Shows Path: ${MEDIA_TV_SHOWS_PATH}"
+echo "Media Movies Path: ${MEDIA_MOVIES_PATH}"
+echo "Media Music Path: ${MEDIA_MUSIC_PATH}"
+echo "Downloads Path: ${DOWNLOADS_PATH}"
 echo "---------------------------------------"
 echo ""
 
@@ -53,8 +99,8 @@ cat << EOF > emby.yaml
 version: "2.3"
 services:
   emby:
-    image: emby/embyserver
-    container_name: embyserver
+    image: emby/embyserver:latest
+    container_name: EmbyServer
     labels:
       - com.centurylinklabs.watchtower.enable=true
     runtime: nvidia # Expose NVIDIA GPUs
@@ -64,9 +110,9 @@ services:
       - PGID=${GLOBAL_PGID}
       - TZ=${GLOBAL_TZ}
     volumes:
-      - /path/to/programdata:/config # Configuration directory
-      - /path/to/tvshows:/mnt/share1 # Media directory
-      - /path/to/movies:/mnt/share2 # Media directory
+      - ${CONFIG_EMBY_PATH}:/config # Configuration directory
+      - ${MEDIA_TV_SHOWS_PATH}:/mnt/tvshows # Media directory for TV Shows
+      - ${MEDIA_MOVIES_PATH}:/mnt/movies # Media directory for Movies
     ports:
       - 8096:8096 # HTTP port
       - 8920:8920 # HTTPS port
@@ -96,7 +142,7 @@ services:
     ports:
       - 5055:5055
     volumes:
-      - /srv/dev-disk-by-uuid-0ce40828-c600-4609-b901-41d606e75f56/0.Configurations/Jellyseerr:/app/config
+      - ${CONFIG_JELLYSEERR_PATH}:/app/config
     restart: unless-stopped
 EOF
 docker-compose -f jellyseer.yaml up -d
@@ -107,20 +153,20 @@ echo "Creating lidarr.yaml and launching the Lidarr service..."
 cat << EOF > lidarr.yaml
 services:
   lidarr:
-    container_name: lidarr
-    image: ghcr.io/hotio/lidarr
+    image: ghcr.io/hotio/lidarr:latest
+    container_name: Lidarr
     labels:
       - com.centurylinklabs.watchtower.enable=true
     ports:
-      - "8686:8686"
+      - 8686:8686
     environment:
       - PUID=${GLOBAL_PUID}
       - PGID=${GLOBAL_PGID}
       - UMASK=002 # You can also globalize UMASK if necessary
       - TZ=${GLOBAL_TZ}
     volumes:
-      - /<host_folder_config>:/config  # IMPORTANT: Replace with your actual path
-      - /<host_folder_data>:/data    # IMPORTANT: Replace with your actual path
+      - ${CONFIG_LIDARR_PATH}:/config
+      - ${MEDIA_MUSIC_PATH}:/data # This is where Lidarr will manage music files
 EOF
 docker-compose -f lidarr.yaml up -d
 # rm lidarr.yaml # Uncomment to delete the file after use
@@ -140,7 +186,7 @@ services:
       - PGID=${GLOBAL_PGID}
       - TZ=${GLOBAL_TZ}
     volumes:
-      - /srv/dev-disk-by-uuid-0ce40828-c600-4609-b901-41d606e75f56/0.Configurations/Prowlarr:/config
+      - ${CONFIG_PROWLARR_PATH}:/config
     ports:
       - 9696:9696
     restart: unless-stopped
@@ -165,8 +211,8 @@ services:
       - WEBUI_PORT=8080
       - TORRENTING_PORT=6881
     volumes:
-      - /srv/dev-disk-by-uuid-0ce40828-c600-4609-b901-41d606e75f56/0.Configurations/QbitTorrent:/config
-      - /srv/dev-disk-by-uuid-0ce40828-c600-4609-b901-41d606e75f56/5.Torrents:/downloads #optional
+      - ${CONFIG_QBITTORRENT_PATH}:/config
+      - ${DOWNLOADS_PATH}:/downloads
     ports:
       - 8080:8080
       - 6881:6881
@@ -191,11 +237,9 @@ services:
       - PGID=${GLOBAL_PGID}
       - TZ=${GLOBAL_TZ}
     volumes:
-      - /srv/dev-disk-by-uuid-0ce40828-c600-4609-b901-41d606e75f56/0.Configurations/Radarr:/config
-      - /srv/dev-disk-by-uuid-0ce40828-c600-4609-b901-41d606e75f56/1.Films:/movies #optional
-      - /srv/dev-disk-by-uuid-0ce40828-c600-4609-b901-41d606e75f56/3.Animations:/animations
-      - /srv/dev-disk-by-uuid-0ce40828-c600-4609-b901-41d606e75f56/5.Torrents/:/downloads #optional
-      - /srv/dev-disk-by-uuid-0ce40828-c600-4609-b901-41d606e75f56/0.Configurations/0.Scripts/TMM:/scripts #chmod +x /scripts/update_movie.sh && chmod 755 /scripts
+      - ${CONFIG_RADARR_PATH}:/config
+      - ${MEDIA_MOVIES_PATH}:/movies
+      - ${DOWNLOADS_PATH}:/downloads
     ports:
       - 7878:7878
     restart: unless-stopped
@@ -218,10 +262,9 @@ services:
       - PGID=${GLOBAL_PGID}
       - TZ=${GLOBAL_TZ}
     volumes:
-      - /srv/dev-disk-by-uuid-0ce40828-c600-4609-b901-41d606e75f56/0.Configurations/Sonarr:/config
-      - /srv/dev-disk-by-uuid-0ce40828-c600-4609-b901-41d606e75f56/2.Séries:/tv #optional
-      - /srv/dev-disk-by-uuid-0ce40828-c600-4609-b901-41d606e75f56/5.Torrents:/downloads #optional
-      - /srv/dev-disk-by-uuid-0ce40828-c600-4609-b901-41d606e75f56/0.Configurations/0.Scripts/TMM:/scripts #chmod +x /scripts/update_tvshow.sh && chmod 755 /scripts
+      - ${CONFIG_SONARR_PATH}:/config
+      - ${MEDIA_TV_SHOWS_PATH}:/tv
+      - ${DOWNLOADS_PATH}:/downloads
     ports:
       - 8989:8989
     restart: unless-stopped
