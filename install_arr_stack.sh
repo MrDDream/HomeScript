@@ -5,13 +5,13 @@
 # Les fonctions de prompt ont été modifiées pour éviter 'local -n' et améliorer
 # la compatibilité avec les versions de Bash antérieures à 4.3.
 
-# --- Couleurs ---
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-NC='\033[0m' # Pas de couleur
+# --- Couleurs (Modifiées pour une interprétation correcte par read -p) ---
+RED=$'\033[0;31m'
+GREEN=$'\033[0;32m'
+YELLOW=$'\033[1;33m'
+BLUE=$'\033[0;34m'
+CYAN=$'\033[0;36m'
+NC=$'\033[0m' # Pas de couleur
 
 # --- Fonctions utilitaires ---
 echoinfo() {
@@ -40,9 +40,7 @@ prompt_with_default() {
   local result_var_name="$3" # Nom de la variable où stocker le résultat
   local input
 
-  # Modification ici: invite directe pour read -p
   read -p "${CYAN}${prompt_message} [${default_value}]: ${NC}" input
-  # Assignation indirecte à la variable dont le nom est contenu dans result_var_name
   printf -v "$result_var_name" "%s" "${input:-$default_value}"
 }
 
@@ -54,7 +52,6 @@ prompt_numeric_with_default() {
 
   while true; do
     prompt_with_default "$prompt_message" "$default_value" "$result_var_name"
-    # Récupération de la valeur via expansion indirecte pour validation
     current_value="${!result_var_name}" 
     
     if is_number "$current_value"; then
@@ -131,59 +128,14 @@ prompt_with_default "Entrez le chemin pour la Musique" "$DEFAULT_MEDIA_MUSIC_PAT
 prompt_with_default "Entrez le chemin pour les Téléchargements" "$DEFAULT_DOWNLOADS_PATH" "DOWNLOADS_PATH"
 echo
 
-# --- Sélection des services à déployer ---
-SERVICES_AVAILABLE=("Emby" "Prowlarr" "Radarr" "Sonarr" "Lidarr" "Byparr" "Jellyseerr" "QbitTorrent" "Watchtower")
-declare -A SERVICES_TO_DEPLOY_MAP 
+# --- Services à déployer (liste fixe) ---
+ORDERED_SERVICES_TO_DEPLOY=("Emby" "Prowlarr" "Radarr" "Sonarr" "Lidarr" "Byparr" "Jellyseerr" "QbitTorrent" "Watchtower")
+SERVICES_TO_DEPLOY=("${ORDERED_SERVICES_TO_DEPLOY[@]}")
 
-echo -e "${YELLOW}--- Sélection des Services ---${NC}"
-options_for_select=("${SERVICES_AVAILABLE[@]}" "Déployer TOUS les services listés ci-dessus" "Valider la sélection et continuer")
-
-PS3="$(echo -e ${CYAN}"Choisissez une option (ajoutez/retirez des services, puis validez) : "${NC})" 
-
-while true; do
-    current_selection_display=""
-    map_keys_sorted=($(printf '%s\n' "${!SERVICES_TO_DEPLOY_MAP[@]}" | sort))
-    for s_name in "${map_keys_sorted[@]}"; do current_selection_display+="$s_name "; done
-    
-    if [ -z "$current_selection_display" ]; then current_selection_display="Aucun"; fi
-    echo -e "${GREEN}Services actuellement sélectionnés pour déploiement : ${NC}$current_selection_display"
-
-    select opt in "${options_for_select[@]}"; do
-        if [[ "$opt" == "Valider la sélection et continuer" ]]; then
-            if [ ${#SERVICES_TO_DEPLOY_MAP[@]} -eq 0 ]; then
-                echowarn "Aucun service n'a été sélectionné. Veuillez en sélectionner au moins un ou choisir 'Déployer TOUS'."
-            else
-                break 2 
-            fi
-        elif [[ "$opt" == "Déployer TOUS les services listés ci-dessus" ]]; then
-            for service_name in "${SERVICES_AVAILABLE[@]}"; do # Uses the reordered SERVICES_AVAILABLE
-                SERVICES_TO_DEPLOY_MAP["$service_name"]=1
-            done
-            echoinfo "Tous les services ont été sélectionnés pour déploiement."
-            break 2 
-        elif [[ -n "$opt" ]]; then 
-            if [[ -n "${SERVICES_TO_DEPLOY_MAP[$opt]}" ]]; then 
-                unset SERVICES_TO_DEPLOY_MAP["$opt"]
-                echoinfo "$opt retiré de la sélection."
-            else 
-                SERVICES_TO_DEPLOY_MAP["$opt"]=1
-                echosuccess "$opt ajouté à la sélection."
-            fi
-            break 
-        else
-            echoerror "Option invalide ($REPLY). Réessayez."
-            break 
-        fi
-    done
+echoinfo "Ce script va configurer le déploiement pour les services suivants (dans cet ordre):"
+for service_name in "${ORDERED_SERVICES_TO_DEPLOY[@]}"; do
+  echoinfo "  - $service_name"
 done
-
-# This array is used for the summary, order from associative array keys is not guaranteed
-SERVICES_TO_DEPLOY=("${!SERVICES_TO_DEPLOY_MAP[@]}") 
-
-if [ ${#SERVICES_TO_DEPLOY[@]} -eq 0 ]; then
-  echowarn "Aucun service sélectionné. Le script va se terminer."
-  exit 0
-fi
 echo
 
 # --- Affichage du résumé et confirmation ---
@@ -195,7 +147,6 @@ echo "  TZ Global: ${GLOBAL_TZ}"
 echo
 echo -e "${CYAN}Chemins de Configuration:${NC}"
 echo "  Chemin de base des données: ${APP_DATA_BASE_PATH}"
-# The summary checks if services are in SERVICES_TO_DEPLOY (which comes from the map)
 if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Emby " ]]; then echo "  Config Emby: ${CONFIG_EMBY_PATH}"; fi
 if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Jellyseerr " ]]; then echo "  Config Jellyseerr: ${CONFIG_JELLYSEERR_PATH}"; fi
 if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Lidarr " ]]; then echo "  Config Lidarr: ${CONFIG_LIDARR_PATH}"; fi
@@ -211,7 +162,6 @@ echo "  Musique: ${MEDIA_MUSIC_PATH}"
 echo "  Téléchargements: ${DOWNLOADS_PATH}"
 echo
 echo -e "${CYAN}Services à déployer:${NC}"
-# Summary is alphabetically sorted
 services_to_deploy_sorted=($(printf '%s\n' "${SERVICES_TO_DEPLOY[@]}" | sort))
 for service in "${services_to_deploy_sorted[@]}"; do
   echo "  - $service"
@@ -235,7 +185,7 @@ echo "---------------------------------------"
 deploy_service() {
   local service_name_proper_case="$1" 
   local yaml_content="$2"
-  local yaml_file="${COMPOSE_DIR}/${service_name_proper_case,,}.yaml" # Filename uses lowercase
+  local yaml_file="${COMPOSE_DIR}/${service_name_proper_case,,}.yaml"
 
   echoinfo "Création de ${yaml_file} et lancement du service ${service_name_proper_case}..."
   echo -e "$yaml_content" > "$yaml_file"
@@ -357,7 +307,7 @@ services:
       - ${DOWNLOADS_PATH}:/downloads
     restart: unless-stopped"
       ;;
-    "Byparr") # Corrected name as in original script for consistency
+    "Byparr")
       yaml_content="---
 version: \"\"
 services:
@@ -375,7 +325,7 @@ services:
       - 8191:8191
     restart: unless-stopped"
       ;;
-    "Jellyseerr") # Corrected name as in original script
+    "Jellyseerr")
       yaml_content="---
 version: \"\"
 services:
@@ -395,7 +345,7 @@ services:
       - ${CONFIG_JELLYSEERR_PATH}:/app/config
     restart: unless-stopped"
       ;;
-    "QbitTorrent") # Corrected name as in original script
+    "QbitTorrent")
       yaml_content="---
 version: \"\"
 services:
@@ -447,17 +397,10 @@ services:
 }
 
 # --- Boucle de déploiement principale ---
-echoinfo "Traitement des services sélectionnés dans l'ordre défini..."
-# This array defines the deployment order.
-# Service names must exactly match the keys used in SERVICES_TO_DEPLOY_MAP and case statements.
-ORDERED_SERVICES_FOR_DEPLOYMENT=("Emby" "Prowlarr" "Radarr" "Sonarr" "Lidarr" "Byparr" "Jellyseerr" "QbitTorrent" "Watchtower")
-
-for service_to_run in "${ORDERED_SERVICES_FOR_DEPLOYMENT[@]}"; do
-  # Check if the service was actually selected by the user (is a key in the map)
-  if [[ -n "${SERVICES_TO_DEPLOY_MAP[$service_to_run]}" ]]; then
-    generate_and_deploy "$service_to_run"
-    echo "---------------------------------------"
-  fi
+echoinfo "Déploiement des services prédéfinis..."
+for service_to_run in "${ORDERED_SERVICES_TO_DEPLOY[@]}"; do
+  generate_and_deploy "$service_to_run"
+  echo "---------------------------------------"
 done
 
 # --- Nettoyage optionnel des fichiers YAML ---
@@ -476,9 +419,9 @@ fi
 
 echo
 echosuccess "--- Fin du Script ---"
-if [ ${#SERVICES_TO_DEPLOY_MAP[@]} -gt 0 ]; then # Check if any service was selected, using the map count
-  echoinfo "Les services Docker Compose sélectionnés ont été traités."
+if [ ${#ORDERED_SERVICES_TO_DEPLOY[@]} -gt 0 ]; then
+  echoinfo "Les services Docker Compose prédéfinis ont été traités."
   echoinfo "Vérifiez les logs de chaque conteneur si vous rencontrez des problèmes (ex: $DOCKER_COMPOSE_CMD logs Watchtower)."
 else
-  echoinfo "Aucun service n'a été déployé."
+  echoinfo "Aucun service n'a été défini pour le déploiement."
 fi
