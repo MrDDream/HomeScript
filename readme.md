@@ -6,11 +6,10 @@ Ce dépôt contient une collection de scripts divers pour faciliter l'installati
 
 Voici une liste des scripts présents dans ce dépôt et une brève description de leur fonction (déduite de leur nom) :
 
-* **`install_arr_stack.sh`**: Ce script semble être conçu pour installer une suite d'applications "*arr*" (comme Sonarr, Radarr, Lidarr, Prowlarr, etc.), probablement dans un environnement Docker.
+* **`install_arr_stack.sh`**: Ce script est conçu pour installer une suite d'applications "*arr*" (comme Sonarr, Radarr, Lidarr, Prowlarr, etc.), dans un environnement Docker.
 * **`install_docker_portainer.sh`**: Ce script installe Docker et Portainer, un outil de gestion d'environnements de conteneurs Docker.
 * **`update_app.sh`**: Un script générique qui pourrait être utilisé pour mettre à jour des applications installées. (Il serait utile de préciser quelles applications ce script gère).
-* **`tinyMediaManager/`**: Ce dossier contient probablement des scripts liés à l'installation ou à la gestion de TinyMediaManager, un outil populaire pour organiser les médiathèques.
-* **`readme.md`**: Le fichier que vous lisez actuellement.
+* **`tinyMediaManager/`**: Ce dossier contient des scripts liés à l'installation ou à la gestion de TinyMediaManager, un outil populaire pour organiser les médiathèques.
 
 ## Objectif du Dépôt
 
