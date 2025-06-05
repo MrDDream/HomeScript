@@ -103,8 +103,6 @@ services:
     container_name: EmbyServer
     labels:
       - com.centurylinklabs.watchtower.enable=true
-    runtime: nvidia # Expose NVIDIA GPUs
-    network_mode: host # Enable DLNA and Wake-on-Lan
     environment:
       - PUID=${GLOBAL_PUID}
       - PGID=${GLOBAL_PGID}
