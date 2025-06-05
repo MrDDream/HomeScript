@@ -136,17 +136,15 @@ echo
 echo -e "${YELLOW}--- Choix du Serveur Multimédia ---${NC}"
 echo "1) Emby"
 echo "2) Jellyfin"
-echo "3) Aucun"
 MEDIA_SERVER_CHOICE_INPUT=""
-MEDIA_SERVER_CHOICE="3" # Default to "Aucun"
 
 while true; do
-  read -p "${CYAN}Entrez votre choix (1 pour Emby, 2 pour Jellyfin, 3 pour Aucun) [3]: ${NC}" MEDIA_SERVER_CHOICE_INPUT
+  read -p "${CYAN}Entrez votre choix (1 pour Emby, 2 pour Jellyfin) [3]: ${NC}" MEDIA_SERVER_CHOICE_INPUT
   MEDIA_SERVER_CHOICE="${MEDIA_SERVER_CHOICE_INPUT:-3}"
-  if [[ "$MEDIA_SERVER_CHOICE" =~ ^[123]$ ]]; then
+  if [[ "$MEDIA_SERVER_CHOICE" =~ ^[12]$ ]]; then
     break
   else
-    echoerror "Choix invalide. Veuillez entrer 1, 2, ou 3."
+    echoerror "Choix invalide. Veuillez entrer 1 ou 2."
   fi
 done
 
@@ -157,8 +155,6 @@ if [ "$MEDIA_SERVER_CHOICE" = "1" ]; then
 elif [ "$MEDIA_SERVER_CHOICE" = "2" ]; then
   MEDIA_SERVER_NAME="Jellyfin"
   echoinfo "Jellyfin sera configuré."
-else
-  echoinfo "Aucun serveur multimédia principal (Emby/Jellyfin) ne sera configuré."
 fi
 echo
 
@@ -198,11 +194,7 @@ echo
 echo -e "${CYAN}Chemins de Configuration:${NC}"
 echo "  Chemin de base des données: ${APP_DATA_BASE_PATH}"
 if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Emby " ]]; then echo "  Config Emby: ${CONFIG_EMBY_PATH}"; fi
-if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Jellyfin " ]]; then
-  echo "  Config Jellyfin: ${CONFIG_JELLYFIN_PATH}"
-  echo "  Cache Jellyfin: ${JELLYFIN_CACHE_PATH}"
-  echo "  Polices Jellyfin (Optionnel, créez le dossier si besoin): ${JELLYFIN_FONTS_PATH}"
-fi
+if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Jellyfin " ]]; then echo "  Config Jellyfin: ${CONFIG_JELLYFIN_PATH}"
 if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Jellyseerr " ]]; then echo "  Config Jellyseerr: ${CONFIG_JELLYSEERR_PATH}"; fi
 if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Lidarr " ]]; then echo "  Config Lidarr: ${CONFIG_LIDARR_PATH}"; fi
 if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Prowlarr " ]]; then echo "  Config Prowlarr: ${CONFIG_PROWLARR_PATH}"; fi
@@ -266,7 +258,7 @@ generate_and_deploy() {
 services:
   emby:
     image: emby/embyserver:latest
-    container_name: EmbyServer
+    container_name: Emby
     labels:
       - com.centurylinklabs.watchtower.enable=true
     environment:
@@ -287,8 +279,8 @@ services:
       yaml_content="---
 services:
   jellyfin:
-    image: jellyfin/jellyfin
-    container_name: jellyfin
+    image: jellyfin/jellyfin:latest
+    container_name: Jellyfin
     labels:
       - com.centurylinklabs.watchtower.enable=true
     environment:
@@ -297,13 +289,11 @@ services:
       - TZ=${GLOBAL_TZ}
       # - JELLYFIN_PublishedServerUrl=http://example.com # Optionnel: à configurer dans Jellyfin ou décommenter
     volumes:
-      - ${CONFIG_JELLYFIN_PATH}:/config
-      - ${JELLYFIN_CACHE_PATH}:/cache
+      - ${CONFIG_JELLYFIN_PATH}/config:/config
+      - ${CONFIG_JELLYFIN_PATH}/cache:/cache
       - ${MEDIA_TV_SHOWS_PATH}:/media/tvshows
       - ${MEDIA_MOVIES_PATH}:/media/movies
       - ${MEDIA_MUSIC_PATH}:/media/music
-      # Optionnel: Créez le dossier local ${JELLYFIN_FONTS_PATH} si vous avez des polices personnalisées
-      # - ${JELLYFIN_FONTS_PATH}:/usr/local/share/fonts/custom:ro
     ports:
       - \"8096:8096\"
       - \"8920:8920\" # Port HTTPS standard, comme Emby
@@ -417,10 +407,6 @@ services:
       - LOG_LEVEL=info
       - TZ=${GLOBAL_TZ}
       - PORT=5055 # Jellyseerr uses PORT for its internal port
-      # JELLYFIN_TYPE should be set based on chosen media server,
-      # but Jellyseerr allows easy change in its UI. Defaulting to emby or let user set.
-      # For now, let's ensure it's there. If Jellyfin is chosen, this should ideally be 'jellyfin'.
-      # The user can change this in the Jellyseerr UI after setup.
       - JELLYFIN_TYPE=emby # Default, user can change in Jellyseerr UI
     ports:
       - \"5055:5055\" # Expose the port defined by PORT env var
