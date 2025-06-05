@@ -11,7 +11,7 @@ echo "--- Global Variables Configuration ---"
 DEFAULT_GLOBAL_PUID=1000
 DEFAULT_GLOBAL_PGID=1000
 DEFAULT_GLOBAL_TZ="Europe/Paris"
-DEFAULT_APP_DATA_BASE_PATH="/srv/dev-disk-by-uuid-0ce" # MODIFY THIS if necessary for the default value
+DEFAULT_APP_DATA_BASE_PATH="/home/" # MODIFY THIS if necessary for the default value
 
 read -p "Enter Global PUID [${DEFAULT_GLOBAL_PUID}]: " input_puid
 GLOBAL_PUID=${input_puid:-$DEFAULT_GLOBAL_PUID}
@@ -25,7 +25,7 @@ GLOBAL_TZ=${input_tz:-$DEFAULT_GLOBAL_TZ}
 echo "---------------------------------------"
 echo "--- Path Configuration ---"
 
-read -p "Enter Base Path for Application Data (APP_DATA_BASE_PATH) [${DEFAULT_APP_DATA_BASE_PATH}]: " input_app_data_base_path
+read -p "Enter Base Path for Application Data [${DEFAULT_APP_DATA_BASE_PATH}]: " input_app_data_base_path
 APP_DATA_BASE_PATH=${input_app_data_base_path:-$DEFAULT_APP_DATA_BASE_PATH}
 
 # --- Configuration Paths (derived from APP_DATA_BASE_PATH) ---
@@ -42,19 +42,19 @@ CONFIG_SONARR_PATH="${APP_DATA_BASE_PATH}/Configurations/Sonarr"
 # --- Prompt for Media Paths ---
 # Default media paths are suggested based on APP_DATA_BASE_PATH, but can be overridden.
 DEFAULT_MEDIA_TV_SHOWS_PATH="${APP_DATA_BASE_PATH}/Tvshows"
-read -p "Enter path for TV Shows (MEDIA_TV_SHOWS_PATH) [${DEFAULT_MEDIA_TV_SHOWS_PATH}]: " input_media_tv
+read -p "Enter path for TV Shows [${DEFAULT_MEDIA_TV_SHOWS_PATH}]: " input_media_tv
 MEDIA_TV_SHOWS_PATH=${input_media_tv:-$DEFAULT_MEDIA_TV_SHOWS_PATH}
 
 DEFAULT_MEDIA_MOVIES_PATH="${APP_DATA_BASE_PATH}/Movies"
-read -p "Enter path for Movies (MEDIA_MOVIES_PATH) [${DEFAULT_MEDIA_MOVIES_PATH}]: " input_media_movies
+read -p "Enter path for Movies [${DEFAULT_MEDIA_MOVIES_PATH}]: " input_media_movies
 MEDIA_MOVIES_PATH=${input_media_movies:-$DEFAULT_MEDIA_MOVIES_PATH}
 
 DEFAULT_MEDIA_MUSIC_PATH="${APP_DATA_BASE_PATH}/Music"
-read -p "Enter path for Music (MEDIA_MUSIC_PATH) [${DEFAULT_MEDIA_MUSIC_PATH}]: " input_media_music
+read -p "Enter path for Music [${DEFAULT_MEDIA_MUSIC_PATH}]: " input_media_music
 MEDIA_MUSIC_PATH=${input_media_music:-$DEFAULT_MEDIA_MUSIC_PATH}
 
 DEFAULT_DOWNLOADS_PATH="${APP_DATA_BASE_PATH}/Torrents"
-read -p "Enter path for Downloads (DOWNLOADS_PATH) [${DEFAULT_DOWNLOADS_PATH}]: " input_downloads
+read -p "Enter path for Downloads [${DEFAULT_DOWNLOADS_PATH}]: " input_downloads
 DOWNLOADS_PATH=${input_downloads:-$DEFAULT_DOWNLOADS_PATH}
 
 echo "---------------------------------------"
