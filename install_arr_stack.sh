@@ -1,6 +1,9 @@
 #!/bin/bash
 
-# NOTE: Ce script utilise des tableaux associatifs (declare -A) qui nécessitent Bash 4.0 ou une version ultérieure.
+# NOTE: Ce script utilise des tableaux associatifs (declare -A) pour la sélection des services,
+# ce qui nécessite Bash version 4.0 ou une version ultérieure.
+# Les fonctions de prompt ont été modifiées pour éviter 'local -n' et améliorer
+# la compatibilité avec les versions de Bash antérieures à 4.3.
 
 # --- Couleurs ---
 RED='\033[0;31m'
@@ -34,21 +37,26 @@ is_number() {
 prompt_with_default() {
   local prompt_message="$1"
   local default_value="$2"
-  local -n result_var="$3" # Référence indirecte à la variable de retour
+  local result_var_name="$3" # Nom de la variable où stocker le résultat
   local input
 
   read -p "$(echo -e ${CYAN}"$prompt_message [${default_value}]: "${NC})" input
-  result_var="${input:-$default_value}"
+  # Assignation indirecte à la variable dont le nom est contenu dans result_var_name
+  printf -v "$result_var_name" "%s" "${input:-$default_value}"
 }
 
 prompt_numeric_with_default() {
   local prompt_message="$1"
   local default_value="$2"
-  local -n result_var="$3"
+  local result_var_name="$3" # Nom de la variable où stocker le résultat
+  local current_value
 
   while true; do
-    prompt_with_default "$prompt_message" "$default_value" "$result_var"
-    if is_number "$result_var"; then
+    prompt_with_default "$prompt_message" "$default_value" "$result_var_name"
+    # Récupération de la valeur via expansion indirecte pour validation
+    current_value="${!result_var_name}" 
+    
+    if is_number "$current_value"; then
       break
     else
       echoerror "L'entrée doit être un nombre."
@@ -79,7 +87,6 @@ echoinfo "Utilisation de la commande: $DOCKER_COMPOSE_CMD"
 # --- Vérification des dépendances ---
 echoinfo "Vérification des dépendances..."
 check_command docker
-# La vérification de DOCKER_COMPOSE_CMD est faite ci-dessus
 
 # --- Message de bienvenue ---
 echo -e "${GREEN}-------------------------------------------------------"
@@ -92,17 +99,19 @@ echo -e "${YELLOW}--- Configuration Globale ---${NC}"
 DEFAULT_GLOBAL_PUID=1000
 DEFAULT_GLOBAL_PGID=1000
 DEFAULT_GLOBAL_TZ="Europe/Paris"
-DEFAULT_APP_DATA_BASE_PATH="/home/Docker" # MODIFIEZ CECI si nécessaire pour la valeur par défaut
+DEFAULT_APP_DATA_BASE_PATH="/home/Docker"
 
-prompt_numeric_with_default "Entrez le PUID Global" "$DEFAULT_GLOBAL_PUID" GLOBAL_PUID
-prompt_numeric_with_default "Entrez le PGID Global" "$DEFAULT_GLOBAL_PGID" GLOBAL_PGID
-prompt_with_default "Entrez le Fuseau Horaire (TZ) Global" "$DEFAULT_GLOBAL_TZ" GLOBAL_TZ
+# Les appels passent maintenant le nom de la variable en tant que chaîne
+prompt_numeric_with_default "Entrez le PUID Global" "$DEFAULT_GLOBAL_PUID" "GLOBAL_PUID"
+prompt_numeric_with_default "Entrez le PGID Global" "$DEFAULT_GLOBAL_PGID" "GLOBAL_PGID"
+prompt_with_default "Entrez le Fuseau Horaire (TZ) Global" "$DEFAULT_GLOBAL_TZ" "GLOBAL_TZ"
 echo
 
 echo -e "${YELLOW}--- Configuration des Chemins ---${NC}"
-prompt_with_default "Entrez le chemin de base pour les données des applications" "$DEFAULT_APP_DATA_BASE_PATH" APP_DATA_BASE_PATH
+prompt_with_default "Entrez le chemin de base pour les données des applications" "$DEFAULT_APP_DATA_BASE_PATH" "APP_DATA_BASE_PATH"
 
 # --- Configuration Paths (derived from APP_DATA_BASE_PATH) ---
+# Ces variables sont définies APRÈS que APP_DATA_BASE_PATH a été saisie.
 CONFIG_EMBY_PATH="${APP_DATA_BASE_PATH}/Configurations/EmbyServer"
 CONFIG_JELLYSEERR_PATH="${APP_DATA_BASE_PATH}/Configurations/Jellyseerr"
 CONFIG_LIDARR_PATH="${APP_DATA_BASE_PATH}/Configurations/Lidarr"
@@ -118,15 +127,15 @@ DEFAULT_MEDIA_MOVIES_PATH="${APP_DATA_BASE_PATH}/Movies"
 DEFAULT_MEDIA_MUSIC_PATH="${APP_DATA_BASE_PATH}/Music"
 DEFAULT_DOWNLOADS_PATH="${APP_DATA_BASE_PATH}/Torrents"
 
-prompt_with_default "Entrez le chemin pour les Séries TV" "$DEFAULT_MEDIA_TV_SHOWS_PATH" MEDIA_TV_SHOWS_PATH
-prompt_with_default "Entrez le chemin pour les Films" "$DEFAULT_MEDIA_MOVIES_PATH" MEDIA_MOVIES_PATH
-prompt_with_default "Entrez le chemin pour la Musique" "$DEFAULT_MEDIA_MUSIC_PATH" MEDIA_MUSIC_PATH
-prompt_with_default "Entrez le chemin pour les Téléchargements" "$DEFAULT_DOWNLOADS_PATH" DOWNLOADS_PATH
+prompt_with_default "Entrez le chemin pour les Séries TV" "$DEFAULT_MEDIA_TV_SHOWS_PATH" "MEDIA_TV_SHOWS_PATH"
+prompt_with_default "Entrez le chemin pour les Films" "$DEFAULT_MEDIA_MOVIES_PATH" "MEDIA_MOVIES_PATH"
+prompt_with_default "Entrez le chemin pour la Musique" "$DEFAULT_MEDIA_MUSIC_PATH" "MEDIA_MUSIC_PATH"
+prompt_with_default "Entrez le chemin pour les Téléchargements" "$DEFAULT_DOWNLOADS_PATH" "DOWNLOADS_PATH"
 echo
 
 # --- Sélection des services à déployer ---
 SERVICES_AVAILABLE=("Byparr" "Emby" "Jellyseerr" "Lidarr" "Prowlarr" "QbitTorrent" "Radarr" "Sonarr" "Watchtower")
-declare -A SERVICES_TO_DEPLOY_MAP # Tableau associatif pour gérer l'unicité
+declare -A SERVICES_TO_DEPLOY_MAP 
 
 echo -e "${YELLOW}--- Sélection des Services ---${NC}"
 options_for_select=("${SERVICES_AVAILABLE[@]}" "Déployer TOUS les services listés ci-dessus" "Valider la sélection et continuer")
@@ -135,7 +144,12 @@ PS3="$(echo -e ${CYAN}"Choisissez une option (ajoutez/retirez des services, puis
 
 while true; do
     current_selection_display=""
-    for s_name in "${!SERVICES_TO_DEPLOY_MAP[@]}"; do current_selection_display+="$s_name "; done
+    # Tri des clés pour un affichage cohérent (nécessite Bash 4+)
+    # Si Bash < 4, l'ordre peut varier mais la fonctionnalité reste.
+    # Pour un tri strict sur Bash < 4, il faudrait plus de code.
+    map_keys_sorted=($(printf '%s\n' "${!SERVICES_TO_DEPLOY_MAP[@]}" | sort))
+    for s_name in "${map_keys_sorted[@]}"; do current_selection_display+="$s_name "; done
+    
     if [ -z "$current_selection_display" ]; then current_selection_display="Aucun"; fi
     echo -e "${GREEN}Services actuellement sélectionnés pour déploiement : ${NC}$current_selection_display"
 
@@ -144,31 +158,31 @@ while true; do
             if [ ${#SERVICES_TO_DEPLOY_MAP[@]} -eq 0 ]; then
                 echowarn "Aucun service n'a été sélectionné. Veuillez en sélectionner au moins un ou choisir 'Déployer TOUS'."
             else
-                break 2 # Sortir de la boucle select et de la boucle while
+                break 2 
             fi
         elif [[ "$opt" == "Déployer TOUS les services listés ci-dessus" ]]; then
             for service_name in "${SERVICES_AVAILABLE[@]}"; do
                 SERVICES_TO_DEPLOY_MAP["$service_name"]=1
             done
             echoinfo "Tous les services ont été sélectionnés pour déploiement."
-            break 2 # Sortir de la boucle select et de la boucle while
-        elif [[ -n "$opt" ]]; then # Une option de service a été choisie
-            if [[ -n "${SERVICES_TO_DEPLOY_MAP[$opt]}" ]]; then # Si déjà sélectionné, on le retire
+            break 2 
+        elif [[ -n "$opt" ]]; then 
+            if [[ -n "${SERVICES_TO_DEPLOY_MAP[$opt]}" ]]; then 
                 unset SERVICES_TO_DEPLOY_MAP["$opt"]
                 echoinfo "$opt retiré de la sélection."
-            else # Sinon, on l'ajoute
+            else 
                 SERVICES_TO_DEPLOY_MAP["$opt"]=1
                 echosuccess "$opt ajouté à la sélection."
             fi
-            break # Sortir de la boucle select pour réafficher le menu et la sélection actuelle
+            break 
         else
             echoerror "Option invalide ($REPLY). Réessayez."
-            break # Sortir de la boucle select pour réafficher le menu
+            break 
         fi
     done
 done
 
-SERVICES_TO_DEPLOY=("${!SERVICES_TO_DEPLOY_MAP[@]}") # Convertir les clés de la map en tableau
+SERVICES_TO_DEPLOY=("${!SERVICES_TO_DEPLOY_MAP[@]}") 
 
 if [ ${#SERVICES_TO_DEPLOY[@]} -eq 0 ]; then
   echowarn "Aucun service sélectionné. Le script va se terminer."
@@ -200,7 +214,9 @@ echo "  Musique: ${MEDIA_MUSIC_PATH}"
 echo "  Téléchargements: ${DOWNLOADS_PATH}"
 echo
 echo -e "${CYAN}Services à déployer:${NC}"
-for service in "${SERVICES_TO_DEPLOY[@]}"; do
+# Tri pour l'affichage du résumé
+services_to_deploy_sorted=($(printf '%s\n' "${SERVICES_TO_DEPLOY[@]}" | sort))
+for service in "${services_to_deploy_sorted[@]}"; do
   echo "  - $service"
 done
 echo
@@ -459,5 +475,5 @@ if [ ${#SERVICES_TO_DEPLOY[@]} -gt 0 ]; then
   echoinfo "Les services Docker Compose sélectionnés ont été traités."
   echoinfo "Vérifiez les logs de chaque conteneur si vous rencontrez des problèmes (ex: $DOCKER_COMPOSE_CMD logs Watchtower)."
 else
-  echoinfo "Aucun service n'a été déployé (cela ne devrait pas arriver si la logique de sélection est correcte)."
+  echoinfo "Aucun service n'a été déployé."
 fi
