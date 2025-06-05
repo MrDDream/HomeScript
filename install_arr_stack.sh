@@ -87,9 +87,9 @@ echoinfo "Checking dependencies..."
 check_command docker
 
 # --- Welcome Message ---
-echo -e "${GREEN}----------------------------------------"
+echo -e "${GREEN}--------------------------------------"
 echo -e " Welcome to the Arr Deployment Wizard"
-echo -e "----------------------------------------${NC}"
+echo -e "--------------------------------------${NC}"
 echo
 
 # --- Prompt for Global Variables ---
