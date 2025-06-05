@@ -518,20 +518,29 @@ if [ ${#ORDERED_SERVICES_TO_DEPLOY[@]} -gt 0 ]; then
     fi
 fi
 
-# --- État des Conteneurs Docker ---
+# --- État Simplifié des Conteneurs Docker ---
 if [ ${#ORDERED_SERVICES_TO_DEPLOY[@]} -gt 0 ]; then
   echo
-  echoinfo "--- État des Conteneurs Docker Déployés ---"
-  echoinfo "Affichage du statut pour chaque service configuré (le nom du conteneur doit correspondre au nom du service):"
+  echoinfo "--- État Simplifié des Conteneurs Docker Déployés ---"
   for service_name_status in "${ORDERED_SERVICES_TO_DEPLOY[@]}"; do
-    echo -e "${CYAN}Statut pour ${service_name_status}:${NC}"
-    # The script defines container_name in YAML as the service name (e.g., container_name: Prowlarr)
-    # So, service_name_status can be used directly to filter by container name.
-    docker ps -a --filter "name=^${service_name_status}$" 
-    # Adding ^ and $ for exact match, though Docker's filter might behave like 'contains' by default for 'name'.
-    # Exact match is safer if other containers might have similar names.
-    echo "---------------------------------------" # Separator for readability
+    # Le nom du conteneur est supposé être le même que le nom du service (ex: Emby, Prowlarr)
+    # car container_name est défini ainsi dans les fichiers YAML.
+    container_state=$(docker inspect --format='{{.State.Status}}' "${service_name_status}" 2>/dev/null)
+    exit_code_inspect=$? # Récupère le code de sortie de la commande docker inspect
+
+    if [ $exit_code_inspect -eq 0 ]; then # Si docker inspect a réussi
+      if [ "$container_state" == "running" ]; then
+        echo -e "${CYAN}Statut pour ${service_name_status}:${NC} ${GREEN}SUCCESS (Up)${NC}"
+      else
+        # Les autres états (exited, created, restarting, paused, dead) sont considérés comme FAILED
+        echo -e "${CYAN}Statut pour ${service_name_status}:${NC} ${RED}FAILED (État: ${container_state})${NC}"
+      fi
+    else
+      # Si docker inspect échoue, le conteneur n'est probablement pas trouvé ou une autre erreur s'est produite.
+      echo -e "${CYAN}Statut pour ${service_name_status}:${NC} ${RED}FAILED (Non trouvé ou erreur lors de l'inspection)${NC}"
+    fi
   done
+  echo "---------------------------------------"
 fi
 
 echo
