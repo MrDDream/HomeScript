@@ -171,17 +171,6 @@ ORDERED_SERVICES_TO_DEPLOY+=("${BASE_SERVICES[@]}")
 # SERVICES_TO_DEPLOY is used to check inclusion in the summary, etc.
 SERVICES_TO_DEPLOY=("${ORDERED_SERVICES_TO_DEPLOY[@]}")
 
-echoinfo "This script will configure deployment for the following services (in this order):"
-if [ ${#ORDERED_SERVICES_TO_DEPLOY[@]} -eq 0 ]; then
-  echoinfo "  (No service selected for deployment)"
-else
-  for service_name in "${ORDERED_SERVICES_TO_DEPLOY[@]}"; do
-    echoinfo "  - $service_name"
-  done
-fi
-echo
-
-
 # --- CONFIGURATION SUMMARY ---
 echo -e "${YELLOW}--- CONFIGURATION SUMMARY ---${NC}"
 echo -e "${CYAN}Global Variables:${NC}"
