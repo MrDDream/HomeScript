@@ -1,36 +1,108 @@
 #!/bin/bash
 
-# Script to create and launch all Docker Compose configurations
-# without needing external YAML files, with globalized PUID, PGID, and TZ,
-# and Watchtower label enabled for all services.
+# NOTE: Ce script utilise des tableaux associatifs (declare -A) qui nécessitent Bash 4.0 ou une version ultérieure.
+
+# --- Couleurs ---
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m' # Pas de couleur
+
+# --- Fonctions utilitaires ---
+echoinfo() {
+  echo -e "${BLUE}INFO:${NC} $1"
+}
+
+echowarn() {
+  echo -e "${YELLOW}ATTENTION:${NC} $1"
+}
+
+echoerror() {
+  echo -e "${RED}ERREUR:${NC} $1"
+}
+
+echosuccess() {
+  echo -e "${GREEN}SUCCÈS:${NC} $1"
+}
+
+is_number() {
+  [[ "$1" =~ ^[0-9]+$ ]]
+}
+
+prompt_with_default() {
+  local prompt_message="$1"
+  local default_value="$2"
+  local -n result_var="$3" # Référence indirecte à la variable de retour
+  local input
+
+  read -p "$(echo -e ${CYAN}"$prompt_message [${default_value}]: "${NC})" input
+  result_var="${input:-$default_value}"
+}
+
+prompt_numeric_with_default() {
+  local prompt_message="$1"
+  local default_value="$2"
+  local -n result_var="$3"
+
+  while true; do
+    prompt_with_default "$prompt_message" "$default_value" "$result_var"
+    if is_number "$result_var"; then
+      break
+    else
+      echoerror "L'entrée doit être un nombre."
+    fi
+  done
+}
+
+check_command() {
+  if ! command -v "$1" &> /dev/null; then
+    echoerror "La commande '$1' est introuvable. Veuillez l'installer."
+    exit 1
+  fi
+}
+
+# Déterminer la commande docker compose à utiliser
+DOCKER_COMPOSE_CMD=""
+if command -v docker &> /dev/null && docker compose version &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker compose"
+elif command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker-compose"
+else
+    echoerror "Ni 'docker compose' (v2) ni 'docker-compose' (v1) n'a été trouvé. Veuillez installer Docker Compose."
+    exit 1
+fi
+echoinfo "Utilisation de la commande: $DOCKER_COMPOSE_CMD"
+
+
+# --- Vérification des dépendances ---
+echoinfo "Vérification des dépendances..."
+check_command docker
+# La vérification de DOCKER_COMPOSE_CMD est faite ci-dessus
+
+# --- Message de bienvenue ---
+echo -e "${GREEN}-------------------------------------------------------"
+echo -e " Bienvenue dans l'assistant de déploiement Docker Compose "
+echo -e "-------------------------------------------------------${NC}"
+echo
 
 # --- Prompt for Global Variables ---
-echo "--- Global Variables Configuration ---"
-
-# Default values
+echo -e "${YELLOW}--- Configuration Globale ---${NC}"
 DEFAULT_GLOBAL_PUID=1000
 DEFAULT_GLOBAL_PGID=1000
 DEFAULT_GLOBAL_TZ="Europe/Paris"
-DEFAULT_APP_DATA_BASE_PATH="/home/Docker" # MODIFY THIS if necessary for the default value
+DEFAULT_APP_DATA_BASE_PATH="/home/Docker" # MODIFIEZ CECI si nécessaire pour la valeur par défaut
 
-read -p "Enter Global PUID [${DEFAULT_GLOBAL_PUID}]: " input_puid
-GLOBAL_PUID=${input_puid:-$DEFAULT_GLOBAL_PUID}
+prompt_numeric_with_default "Entrez le PUID Global" "$DEFAULT_GLOBAL_PUID" GLOBAL_PUID
+prompt_numeric_with_default "Entrez le PGID Global" "$DEFAULT_GLOBAL_PGID" GLOBAL_PGID
+prompt_with_default "Entrez le Fuseau Horaire (TZ) Global" "$DEFAULT_GLOBAL_TZ" GLOBAL_TZ
+echo
 
-read -p "Enter Global PGID [${DEFAULT_GLOBAL_PGID}]: " input_pgid
-GLOBAL_PGID=${input_pgid:-$DEFAULT_GLOBAL_PGID}
-
-read -p "Enter Global Timezone (TZ) [${DEFAULT_GLOBAL_TZ}]: " input_tz
-GLOBAL_TZ=${input_tz:-$DEFAULT_GLOBAL_TZ}
-
-echo "---------------------------------------"
-echo "--- Path Configuration ---"
-
-read -p "Enter Base Path for Application Data [${DEFAULT_APP_DATA_BASE_PATH}]: " input_app_data_base_path
-APP_DATA_BASE_PATH=${input_app_data_base_path:-$DEFAULT_APP_DATA_BASE_PATH}
+echo -e "${YELLOW}--- Configuration des Chemins ---${NC}"
+prompt_with_default "Entrez le chemin de base pour les données des applications" "$DEFAULT_APP_DATA_BASE_PATH" APP_DATA_BASE_PATH
 
 # --- Configuration Paths (derived from APP_DATA_BASE_PATH) ---
-# These paths are defined AFTER APP_DATA_BASE_PATH is set.
-# User will not be prompted for these individually unless further specified.
 CONFIG_EMBY_PATH="${APP_DATA_BASE_PATH}/Configurations/EmbyServer"
 CONFIG_JELLYSEERR_PATH="${APP_DATA_BASE_PATH}/Configurations/Jellyseerr"
 CONFIG_LIDARR_PATH="${APP_DATA_BASE_PATH}/Configurations/Lidarr"
@@ -39,62 +111,137 @@ CONFIG_QBITTORRENT_PATH="${APP_DATA_BASE_PATH}/Configurations/QbitTorrent"
 CONFIG_RADARR_PATH="${APP_DATA_BASE_PATH}/Configurations/Radarr"
 CONFIG_SONARR_PATH="${APP_DATA_BASE_PATH}/Configurations/Sonarr"
 
-# --- Prompt for Media Paths ---
-# Default media paths are suggested based on APP_DATA_BASE_PATH, but can be overridden.
+echo
+echo -e "${YELLOW}--- Configuration des Chemins Médias ---${NC}"
 DEFAULT_MEDIA_TV_SHOWS_PATH="${APP_DATA_BASE_PATH}/Tvshows"
-read -p "Enter path for TV Shows [${DEFAULT_MEDIA_TV_SHOWS_PATH}]: " input_media_tv
-MEDIA_TV_SHOWS_PATH=${input_media_tv:-$DEFAULT_MEDIA_TV_SHOWS_PATH}
-
 DEFAULT_MEDIA_MOVIES_PATH="${APP_DATA_BASE_PATH}/Movies"
-read -p "Enter path for Movies [${DEFAULT_MEDIA_MOVIES_PATH}]: " input_media_movies
-MEDIA_MOVIES_PATH=${input_media_movies:-$DEFAULT_MEDIA_MOVIES_PATH}
-
 DEFAULT_MEDIA_MUSIC_PATH="${APP_DATA_BASE_PATH}/Music"
-read -p "Enter path for Music [${DEFAULT_MEDIA_MUSIC_PATH}]: " input_media_music
-MEDIA_MUSIC_PATH=${input_media_music:-$DEFAULT_MEDIA_MUSIC_PATH}
-
 DEFAULT_DOWNLOADS_PATH="${APP_DATA_BASE_PATH}/Torrents"
-read -p "Enter path for Downloads [${DEFAULT_DOWNLOADS_PATH}]: " input_downloads
-DOWNLOADS_PATH=${input_downloads:-$DEFAULT_DOWNLOADS_PATH}
 
-echo "---------------------------------------"
-echo ""
+prompt_with_default "Entrez le chemin pour les Séries TV" "$DEFAULT_MEDIA_TV_SHOWS_PATH" MEDIA_TV_SHOWS_PATH
+prompt_with_default "Entrez le chemin pour les Films" "$DEFAULT_MEDIA_MOVIES_PATH" MEDIA_MOVIES_PATH
+prompt_with_default "Entrez le chemin pour la Musique" "$DEFAULT_MEDIA_MUSIC_PATH" MEDIA_MUSIC_PATH
+prompt_with_default "Entrez le chemin pour les Téléchargements" "$DEFAULT_DOWNLOADS_PATH" DOWNLOADS_PATH
+echo
 
-# --- Create compose subdirectory ---
+# --- Sélection des services à déployer ---
+SERVICES_AVAILABLE=("Byparr" "Emby" "Jellyseerr" "Lidarr" "Prowlarr" "QbitTorrent" "Radarr" "Sonarr" "Watchtower")
+declare -A SERVICES_TO_DEPLOY_MAP # Tableau associatif pour gérer l'unicité
+
+echo -e "${YELLOW}--- Sélection des Services ---${NC}"
+options_for_select=("${SERVICES_AVAILABLE[@]}" "Déployer TOUS les services listés ci-dessus" "Valider la sélection et continuer")
+
+PS3="$(echo -e ${CYAN}"Choisissez une option (ajoutez/retirez des services, puis validez) : "${NC})"
+
+while true; do
+    current_selection_display=""
+    for s_name in "${!SERVICES_TO_DEPLOY_MAP[@]}"; do current_selection_display+="$s_name "; done
+    if [ -z "$current_selection_display" ]; then current_selection_display="Aucun"; fi
+    echo -e "${GREEN}Services actuellement sélectionnés pour déploiement : ${NC}$current_selection_display"
+
+    select opt in "${options_for_select[@]}"; do
+        if [[ "$opt" == "Valider la sélection et continuer" ]]; then
+            if [ ${#SERVICES_TO_DEPLOY_MAP[@]} -eq 0 ]; then
+                echowarn "Aucun service n'a été sélectionné. Veuillez en sélectionner au moins un ou choisir 'Déployer TOUS'."
+            else
+                break 2 # Sortir de la boucle select et de la boucle while
+            fi
+        elif [[ "$opt" == "Déployer TOUS les services listés ci-dessus" ]]; then
+            for service_name in "${SERVICES_AVAILABLE[@]}"; do
+                SERVICES_TO_DEPLOY_MAP["$service_name"]=1
+            done
+            echoinfo "Tous les services ont été sélectionnés pour déploiement."
+            break 2 # Sortir de la boucle select et de la boucle while
+        elif [[ -n "$opt" ]]; then # Une option de service a été choisie
+            if [[ -n "${SERVICES_TO_DEPLOY_MAP[$opt]}" ]]; then # Si déjà sélectionné, on le retire
+                unset SERVICES_TO_DEPLOY_MAP["$opt"]
+                echoinfo "$opt retiré de la sélection."
+            else # Sinon, on l'ajoute
+                SERVICES_TO_DEPLOY_MAP["$opt"]=1
+                echosuccess "$opt ajouté à la sélection."
+            fi
+            break # Sortir de la boucle select pour réafficher le menu et la sélection actuelle
+        else
+            echoerror "Option invalide ($REPLY). Réessayez."
+            break # Sortir de la boucle select pour réafficher le menu
+        fi
+    done
+done
+
+SERVICES_TO_DEPLOY=("${!SERVICES_TO_DEPLOY_MAP[@]}") # Convertir les clés de la map en tableau
+
+if [ ${#SERVICES_TO_DEPLOY[@]} -eq 0 ]; then
+  echowarn "Aucun service sélectionné. Le script va se terminer."
+  exit 0
+fi
+echo
+
+# --- Affichage du résumé et confirmation ---
+echo -e "${YELLOW}--- RÉSUMÉ DE LA CONFIGURATION ---${NC}"
+echo -e "${CYAN}Variables Globales:${NC}"
+echo "  PUID Global: ${GLOBAL_PUID}"
+echo "  PGID Global: ${GLOBAL_PGID}"
+echo "  TZ Global: ${GLOBAL_TZ}"
+echo
+echo -e "${CYAN}Chemins de Configuration:${NC}"
+echo "  Chemin de base des données: ${APP_DATA_BASE_PATH}"
+if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Emby " ]]; then echo "  Config Emby: ${CONFIG_EMBY_PATH}"; fi
+if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Jellyseerr " ]]; then echo "  Config Jellyseerr: ${CONFIG_JELLYSEERR_PATH}"; fi
+if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Lidarr " ]]; then echo "  Config Lidarr: ${CONFIG_LIDARR_PATH}"; fi
+if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Prowlarr " ]]; then echo "  Config Prowlarr: ${CONFIG_PROWLARR_PATH}"; fi
+if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " QbitTorrent " ]]; then echo "  Config QbitTorrent: ${CONFIG_QBITTORRENT_PATH}"; fi
+if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Radarr " ]]; then echo "  Config Radarr: ${CONFIG_RADARR_PATH}"; fi
+if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Sonarr " ]]; then echo "  Config Sonarr: ${CONFIG_SONARR_PATH}"; fi
+echo
+echo -e "${CYAN}Chemins Médias:${NC}"
+echo "  Séries TV: ${MEDIA_TV_SHOWS_PATH}"
+echo "  Films: ${MEDIA_MOVIES_PATH}"
+echo "  Musique: ${MEDIA_MUSIC_PATH}"
+echo "  Téléchargements: ${DOWNLOADS_PATH}"
+echo
+echo -e "${CYAN}Services à déployer:${NC}"
+for service in "${SERVICES_TO_DEPLOY[@]}"; do
+  echo "  - $service"
+done
+echo
+
+read -p "$(echo -e ${YELLOW}Souhaitez-vous continuer avec cette configuration ? (o/N): ${NC})" confirm
+if [[ ! "$confirm" =~ ^([oO][uU][iI]|[oO]|[yY][eE][sS]|[yY])$ ]]; then
+  echoinfo "Opération annulée par l'utilisateur."
+  exit 0
+fi
+echo
+
+# --- Création du sous-répertoire compose ---
 COMPOSE_DIR="compose"
-echo "Ensuring '${COMPOSE_DIR}' directory exists..."
+echoinfo "Vérification/Création du répertoire '${COMPOSE_DIR}'..."
 mkdir -p "${COMPOSE_DIR}"
 echo "---------------------------------------"
 
-echo "--- Global Values Used ---"
-echo "Global PUID: ${GLOBAL_PUID}"
-echo "Global PGID: ${GLOBAL_PGID}"
-echo "Global TZ: ${GLOBAL_TZ}"
-echo "---------------------------------------"
-echo "--- Configuration Paths Used ---"
-echo "Application Data Base Path: ${APP_DATA_BASE_PATH}"
-echo "Emby Config Path: ${CONFIG_EMBY_PATH}"
-echo "Jellyseerr Config Path: ${CONFIG_JELLYSEERR_PATH}"
-echo "Lidarr Config Path: ${CONFIG_LIDARR_PATH}"
-echo "Prowlarr Config Path: ${CONFIG_PROWLARR_PATH}"
-echo "QbitTorrent Config Path: ${CONFIG_QBITTORRENT_PATH}"
-echo "Radarr Config Path: ${CONFIG_RADARR_PATH}"
-echo "Sonarr Config Path: ${CONFIG_SONARR_PATH}"
-echo "---------------------------------------"
-echo "--- Media Paths Used ---"
-echo "Media TV Shows Path: ${MEDIA_TV_SHOWS_PATH}"
-echo "Media Movies Path: ${MEDIA_MOVIES_PATH}"
-echo "Media Music Path: ${MEDIA_MUSIC_PATH}"
-echo "Downloads Path: ${DOWNLOADS_PATH}"
-echo "---------------------------------------"
-echo ""
+# --- Fonctions de génération et de lancement ---
+deploy_service() {
+  local service_name_proper_case="$1" 
+  local yaml_content="$2"
+  local yaml_file="${COMPOSE_DIR}/${service_name_proper_case,,}.yaml"
 
-# Make sure Docker and Docker Compose (or 'docker compose') are installed.
+  echoinfo "Création de ${yaml_file} et lancement du service ${service_name_proper_case}..."
+  echo -e "$yaml_content" > "$yaml_file"
 
-# --- Byparr Configuration ---
-echo "Creating ${COMPOSE_DIR}/byparr.yaml and launching the Byparr service..."
-cat << EOF > "${COMPOSE_DIR}/byparr.yaml"
----
+  if $DOCKER_COMPOSE_CMD -f "$yaml_file" up -d; then
+    echosuccess "Service ${service_name_proper_case} démarré."
+  else
+    echoerror "Échec du démarrage du service ${service_name_proper_case}. Vérifiez ${yaml_file} et les logs Docker."
+  fi
+}
+
+generate_and_deploy() {
+  local service_name="$1" 
+  local yaml_content=""
+
+  case "$service_name" in
+    "Byparr")
+      yaml_content="---
+version: \"3.8\"
 services:
   Byparr:
     image: ghcr.io/thephaseless/byparr:latest
@@ -102,21 +249,17 @@ services:
     labels:
       - com.centurylinklabs.watchtower.enable=true
     environment:
-      - LOG_LEVEL=\${LOG_LEVEL:-info} # Docker Compose will handle this variable
-      - LOG_HTML=\${LOG_HTML:-false} # Docker Compose will handle this variable
-      - CAPTCHA_SOLVER=\${CAPTCHA_SOLVER:-none} # Docker Compose will handle this variable
+      - LOG_LEVEL=\${LOG_LEVEL:-info}
+      - LOG_HTML=\${LOG_HTML:-false}
+      - CAPTCHA_SOLVER=\${CAPTCHA_SOLVER:-none}
       - TZ=${GLOBAL_TZ}
     ports:
       - 8191:8191
-    restart: unless-stopped
-EOF
-docker-compose -f "${COMPOSE_DIR}/byparr.yaml" up -d
-# rm "${COMPOSE_DIR}/byparr.yaml" # Uncomment to delete the file after use
-
-# --- Emby Configuration ---
-echo "Creating ${COMPOSE_DIR}/emby.yaml and launching the Emby service..."
-cat << EOF > "${COMPOSE_DIR}/emby.yaml"
----
+    restart: unless-stopped"
+      ;;
+    "Emby")
+      yaml_content="---
+version: \"3.8\"
 services:
   emby:
     image: emby/embyserver:latest
@@ -128,21 +271,17 @@ services:
       - PGID=${GLOBAL_PGID}
       - TZ=${GLOBAL_TZ}
     volumes:
-      - ${CONFIG_EMBY_PATH}:/config # Configuration directory
-      - ${MEDIA_TV_SHOWS_PATH}:/mnt/tvshows # Media directory for TV Shows
-      - ${MEDIA_MOVIES_PATH}:/mnt/movies # Media directory for Movies
+      - ${CONFIG_EMBY_PATH}:/config
+      - ${MEDIA_TV_SHOWS_PATH}:/mnt/tvshows
+      - ${MEDIA_MOVIES_PATH}:/mnt/movies
     ports:
-      - 8096:8096 # HTTP port
-      - 8920:8920 # HTTPS port
-    restart: on-failure
-EOF
-docker-compose -f "${COMPOSE_DIR}/emby.yaml" up -d
-# rm "${COMPOSE_DIR}/emby.yaml" # Uncomment to delete the file after use
-
-# --- Jellyseerr Configuration ---
-echo "Creating ${COMPOSE_DIR}/jellyseer.yaml and launching the Jellyseerr service..."
-cat << EOF > "${COMPOSE_DIR}/jellyseer.yaml"
----
+      - 8096:8096
+      - 8920:8920
+    restart: on-failure"
+      ;;
+    "Jellyseerr")
+      yaml_content="---
+version: \"3.8\"
 services:
   jellyseerr:
     image: fallenbagel/jellyseerr:latest
@@ -150,47 +289,41 @@ services:
     labels:
       - com.centurylinklabs.watchtower.enable=true
     environment:
-      - LOG_LEVEL=debug
+      - LOG_LEVEL=info
       - TZ=${GLOBAL_TZ}
-      - PORT=5055 #optional
+      - PORT=5055
       - JELLYFIN_TYPE=emby
     ports:
       - 5055:5055
     volumes:
       - ${CONFIG_JELLYSEERR_PATH}:/app/config
-    restart: unless-stopped
-EOF
-docker-compose -f "${COMPOSE_DIR}/jellyseer.yaml" up -d
-# rm "${COMPOSE_DIR}/jellyseer.yaml" # Uncomment to delete the file after use
-
-# --- Lidarr Configuration ---
-echo "Creating ${COMPOSE_DIR}/lidarr.yaml and launching the Lidarr service..."
-cat << EOF > "${COMPOSE_DIR}/lidarr.yaml"
+    restart: unless-stopped"
+      ;;
+    "Lidarr")
+      yaml_content="---
+version: \"3.8\"
 services:
   lidarr:
-    image: ghcr.io/hotio/lidarr:latest
+    image: lscr.io/linuxserver/lidarr:latest
     container_name: Lidarr
     labels:
       - com.centurylinklabs.watchtower.enable=true
     ports:
-      - "8686:8686"
+      - \"8686:8686\"
     environment:
       - PUID=${GLOBAL_PUID}
       - PGID=${GLOBAL_PGID}
-      - UMASK=002 # You can also globalize UMASK if necessary
+      - UMASK=002
       - TZ=${GLOBAL_TZ}
     volumes:
       - ${CONFIG_LIDARR_PATH}:/config
-      - ${MEDIA_MUSIC_PATH}:/data # This is where Lidarr will manage music files
-    restart: unless-stopped # Added restart policy for consistency
-EOF
-docker-compose -f "${COMPOSE_DIR}/lidarr.yaml" up -d
-# rm "${COMPOSE_DIR}/lidarr.yaml" # Uncomment to delete the file after use
-
-# --- Prowlarr Configuration ---
-echo "Creating ${COMPOSE_DIR}/prowlarr.yaml and launching the Prowlarr service..."
-cat << EOF > "${COMPOSE_DIR}/prowlarr.yaml"
----
+      - ${MEDIA_MUSIC_PATH}:/music
+      - ${DOWNLOADS_PATH}:/downloads
+    restart: unless-stopped"
+      ;;
+    "Prowlarr")
+      yaml_content="---
+version: \"3.8\"
 services:
   prowlarr:
     image: lscr.io/linuxserver/prowlarr:latest
@@ -205,15 +338,11 @@ services:
       - ${CONFIG_PROWLARR_PATH}:/config
     ports:
       - 9696:9696
-    restart: unless-stopped
-EOF
-docker-compose -f "${COMPOSE_DIR}/prowlarr.yaml" up -d
-# rm "${COMPOSE_DIR}/prowlarr.yaml" # Uncomment to delete the file after use
-
-# --- QbitTorrent Configuration ---
-echo "Creating ${COMPOSE_DIR}/qbitorrent.yaml and launching the QbitTorrent service..."
-cat << EOF > "${COMPOSE_DIR}/qbitorrent.yaml"
----
+    restart: unless-stopped"
+      ;;
+    "QbitTorrent")
+      yaml_content="---
+version: \"3.8\"
 services:
   qbittorrent:
     image: lscr.io/linuxserver/qbittorrent:latest
@@ -233,16 +362,11 @@ services:
       - 8080:8080
       - 6881:6881
       - 6881:6881/udp
-    restart: unless-stopped
-EOF
-docker-compose -f "${COMPOSE_DIR}/qbitorrent.yaml" up -d
-# rm "${COMPOSE_DIR}/qbitorrent.yaml" # Uncomment to delete the file after use
-
-# --- Radarr Configuration ---
-# Ensure they are defined in the "Global Volume Paths" section or as environment variables if you uncomment them.
-echo "Creating ${COMPOSE_DIR}/radarr.yaml and launching the Radarr service..."
-cat << EOF > "${COMPOSE_DIR}/radarr.yaml"
----
+    restart: unless-stopped"
+      ;;
+    "Radarr")
+      yaml_content="---
+version: \"3.8\"
 services:
   radarr:
     image: lscr.io/linuxserver/radarr:latest
@@ -259,16 +383,11 @@ services:
       - ${DOWNLOADS_PATH}:/downloads
     ports:
       - 7878:7878
-    restart: unless-stopped
-EOF
-docker-compose -f "${COMPOSE_DIR}/radarr.yaml" up -d
-# rm "${COMPOSE_DIR}/radarr.yaml" # Uncomment to delete the file after use
-
-# --- Sonarr Configuration ---
-# Ensure it is defined in the "Global Volume Paths" section or as an environment variable if you uncomment it.
-echo "Creating ${COMPOSE_DIR}/sonarr.yaml and launching the Sonarr service..."
-cat << EOF > "${COMPOSE_DIR}/sonarr.yaml"
----
+    restart: unless-stopped"
+      ;;
+    "Sonarr")
+      yaml_content="---
+version: \"3.8\"
 services:
   sonarr:
     image: lscr.io/linuxserver/sonarr:latest
@@ -285,42 +404,60 @@ services:
       - ${DOWNLOADS_PATH}:/downloads
     ports:
       - 8989:8989
-    restart: unless-stopped
-EOF
-docker-compose -f "${COMPOSE_DIR}/sonarr.yaml" up -d
-# rm "${COMPOSE_DIR}/sonarr.yaml" # Uncomment to delete the file after use
-
-# --- Watchtower Configuration ---
-echo "Creating ${COMPOSE_DIR}/watchtower.yaml and launching the Watchtower service..."
-cat << EOF > "${COMPOSE_DIR}/watchtower.yaml"
----
+    restart: unless-stopped"
+      ;;
+    "Watchtower")
+      yaml_content="---
+version: \"3.8\"
 services:
   watchtower:
     image: containrrr/watchtower:latest
-    container_name: Watchtower # Capitalized for consistency with other container names in this script
+    container_name: Watchtower
     environment:
       - TZ=${GLOBAL_TZ}
-      # - WATCHTOWER_CLEANUP=true  # Uncomment to remove old images after update
-      # - WATCHTOWER_SCHEDULE="0 0 4 * * *" # Uncomment to specify a cron schedule (e.g., 4 AM daily)
-                                          # Default: checks every 24 hours from when it was started.
-                                          # Ensure your TZ is correct for cron interpretation if not UTC.
-      # - WATCHTOWER_POLL_INTERVAL=3600 # Uncomment to change polling interval (in seconds, e.g., 3600 for 1 hour)
-                                        # Default is 86400 (24 hours).
-                                        # Use this OR WATCHTOWER_SCHEDULE, not both typically.
+      # - WATCHTOWER_CLEANUP=true
+      # - WATCHTOWER_SCHEDULE=\"0 0 4 * * *\"
+      # - WATCHTOWER_POLL_INTERVAL=3600
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock # Essential for Watchtower to interact with Docker
-    restart: unless-stopped
-    # No 'com.centurylinklabs.watchtower.enable=true' label is strictly needed for Watchtower to update itself,
-    # as it updates itself by default unless configured otherwise.
-    # It will monitor all other containers that DO have this label set to true.
-EOF
-docker-compose -f "${COMPOSE_DIR}/watchtower.yaml" up -d
-# rm "${COMPOSE_DIR}/watchtower.yaml" # Uncomment to delete the file after use
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped"
+      ;;
+    *)
+      echowarn "Aucune configuration YAML définie pour le service : $service_name"
+      return 
+      ;;
+  esac
 
-echo ""
-echo "--- End of Script ---"
-echo "All configured Docker Compose services have been launched."
-echo "YAML files were created in the '${COMPOSE_DIR}' subdirectory."
-echo "Watchtower has also been started and will monitor labeled containers for updates."
-echo "Note: Temporary YAML files were created in '${COMPOSE_DIR}' and then (if uncommented) deleted."
-echo "Check the logs of each container if you encounter problems (e.g., docker logs Watchtower)."
+  if [ -n "$yaml_content" ]; then
+    deploy_service "$service_name" "$yaml_content"
+  fi
+}
+
+
+for service_to_run in "${SERVICES_TO_DEPLOY[@]}"; do
+  generate_and_deploy "$service_to_run"
+  echo "---------------------------------------"
+done
+
+# --- Nettoyage optionnel des fichiers YAML ---
+echo
+read -p "$(echo -e ${CYAN}Souhaitez-vous supprimer les fichiers YAML générés dans le répertoire '${COMPOSE_DIR}' ? (o/N): "${NC})" cleanup_choice
+if [[ "$cleanup_choice" =~ ^([oO][uU][iI]|[oO]|[yY][eE][sS]|[yY])$ ]]; then
+  echoinfo "Suppression des fichiers YAML..."
+  if rm -rf "${COMPOSE_DIR}"; then 
+    echosuccess "Répertoire '${COMPOSE_DIR}' et ses fichiers YAML supprimés."
+  else
+    echoerror "Échec de la suppression du répertoire '${COMPOSE_DIR}'."
+  fi
+else
+  echoinfo "Les fichiers YAML sont conservés dans le répertoire '${COMPOSE_DIR}'."
+fi
+
+echo
+echosuccess "--- Fin du Script ---"
+if [ ${#SERVICES_TO_DEPLOY[@]} -gt 0 ]; then
+  echoinfo "Les services Docker Compose sélectionnés ont été traités."
+  echoinfo "Vérifiez les logs de chaque conteneur si vous rencontrez des problèmes (ex: $DOCKER_COMPOSE_CMD logs Watchtower)."
+else
+  echoinfo "Aucun service n'a été déployé (cela ne devrait pas arriver si la logique de sélection est correcte)."
+fi
