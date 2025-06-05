@@ -26,7 +26,7 @@ APP_DATA_BASE_PATH="/srv/dev-disk-by-uuid-0ce" # MODIFY THIS TO YOUR MAIN DATA D
 
 # Configuration Paths
 # For Emby, original was /path/to/programdata. Adjust if ${APP_DATA_BASE_PATH}/emby_config is not suitable.
-CONFIG_EMBY_PATH="${APP_DATA_BASE_PATH}/emby_config"
+CONFIG_EMBY_PATH="${APP_DATA_BASE_PATH}/Configurations/EmbyServer"
 CONFIG_JELLYSEERR_PATH="${APP_DATA_BASE_PATH}/Configurations/Jellyseerr"
 # For Lidarr, original was /<host_folder_config>. Adjust if ${APP_DATA_BASE_PATH}/0.Configurations/Lidarr is not suitable.
 CONFIG_LIDARR_PATH="${APP_DATA_BASE_PATH}/Configurations/Lidarr"
@@ -42,7 +42,6 @@ MEDIA_TV_SHOWS_PATH="${APP_DATA_BASE_PATH}/Tvshows"
 MEDIA_MOVIES_PATH="${APP_DATA_BASE_PATH}/Movies"
 # For Lidarr music, original was /<host_folder_data>. This path will be mapped to /data in Lidarr.
 MEDIA_MUSIC_PATH="${APP_DATA_BASE_PATH}/Music" # Or, e.g., "${APP_DATA_BASE_PATH}/Music"
-
 # Downloads Path
 DOWNLOADS_PATH="${APP_DATA_BASE_PATH}/Torrents"
 
