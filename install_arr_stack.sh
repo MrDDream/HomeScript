@@ -40,7 +40,8 @@ prompt_with_default() {
   local result_var_name="$3" # Nom de la variable où stocker le résultat
   local input
 
-  read -p "$(echo -e ${CYAN}"$prompt_message [${default_value}]: "${NC})" input
+  # Modification ici: invite directe pour read -p
+  read -p "${CYAN}${prompt_message} [${default_value}]: ${NC}" input
   # Assignation indirecte à la variable dont le nom est contenu dans result_var_name
   printf -v "$result_var_name" "%s" "${input:-$default_value}"
 }
@@ -101,7 +102,6 @@ DEFAULT_GLOBAL_PGID=1000
 DEFAULT_GLOBAL_TZ="Europe/Paris"
 DEFAULT_APP_DATA_BASE_PATH="/home/Docker"
 
-# Les appels passent maintenant le nom de la variable en tant que chaîne
 prompt_numeric_with_default "Entrez le PUID Global" "$DEFAULT_GLOBAL_PUID" "GLOBAL_PUID"
 prompt_numeric_with_default "Entrez le PGID Global" "$DEFAULT_GLOBAL_PGID" "GLOBAL_PGID"
 prompt_with_default "Entrez le Fuseau Horaire (TZ) Global" "$DEFAULT_GLOBAL_TZ" "GLOBAL_TZ"
@@ -110,8 +110,6 @@ echo
 echo -e "${YELLOW}--- Configuration des Chemins ---${NC}"
 prompt_with_default "Entrez le chemin de base pour les données des applications" "$DEFAULT_APP_DATA_BASE_PATH" "APP_DATA_BASE_PATH"
 
-# --- Configuration Paths (derived from APP_DATA_BASE_PATH) ---
-# Ces variables sont définies APRÈS que APP_DATA_BASE_PATH a été saisie.
 CONFIG_EMBY_PATH="${APP_DATA_BASE_PATH}/Configurations/EmbyServer"
 CONFIG_JELLYSEERR_PATH="${APP_DATA_BASE_PATH}/Configurations/Jellyseerr"
 CONFIG_LIDARR_PATH="${APP_DATA_BASE_PATH}/Configurations/Lidarr"
@@ -140,13 +138,10 @@ declare -A SERVICES_TO_DEPLOY_MAP
 echo -e "${YELLOW}--- Sélection des Services ---${NC}"
 options_for_select=("${SERVICES_AVAILABLE[@]}" "Déployer TOUS les services listés ci-dessus" "Valider la sélection et continuer")
 
-PS3="$(echo -e ${CYAN}"Choisissez une option (ajoutez/retirez des services, puis validez) : "${NC})"
+PS3="$(echo -e ${CYAN}"Choisissez une option (ajoutez/retirez des services, puis validez) : "${NC})" # PS3 est géré différemment par select, $(echo -e) est généralement OK ici
 
 while true; do
     current_selection_display=""
-    # Tri des clés pour un affichage cohérent (nécessite Bash 4+)
-    # Si Bash < 4, l'ordre peut varier mais la fonctionnalité reste.
-    # Pour un tri strict sur Bash < 4, il faudrait plus de code.
     map_keys_sorted=($(printf '%s\n' "${!SERVICES_TO_DEPLOY_MAP[@]}" | sort))
     for s_name in "${map_keys_sorted[@]}"; do current_selection_display+="$s_name "; done
     
@@ -214,14 +209,14 @@ echo "  Musique: ${MEDIA_MUSIC_PATH}"
 echo "  Téléchargements: ${DOWNLOADS_PATH}"
 echo
 echo -e "${CYAN}Services à déployer:${NC}"
-# Tri pour l'affichage du résumé
 services_to_deploy_sorted=($(printf '%s\n' "${SERVICES_TO_DEPLOY[@]}" | sort))
 for service in "${services_to_deploy_sorted[@]}"; do
   echo "  - $service"
 done
 echo
 
-read -p "$(echo -e ${YELLOW}Souhaitez-vous continuer avec cette configuration ? (o/N): ${NC})" confirm
+# Modification ici: invite directe pour read -p (Ligne 224 dans la version précédente)
+read -p "${YELLOW}Souhaitez-vous continuer avec cette configuration ? (o/N): ${NC}" confirm
 if [[ ! "$confirm" =~ ^([oO][uU][iI]|[oO]|[yY][eE][sS]|[yY])$ ]]; then
   echoinfo "Opération annulée par l'utilisateur."
   exit 0
@@ -457,7 +452,8 @@ done
 
 # --- Nettoyage optionnel des fichiers YAML ---
 echo
-read -p "$(echo -e ${CYAN}Souhaitez-vous supprimer les fichiers YAML générés dans le répertoire '${COMPOSE_DIR}' ? (o/N): "${NC})" cleanup_choice
+# Modification ici: invite directe pour read -p
+read -p "${CYAN}Souhaitez-vous supprimer les fichiers YAML générés dans le répertoire '${COMPOSE_DIR}' ? (o/N): ${NC}" cleanup_choice
 if [[ "$cleanup_choice" =~ ^([oO][uU][iI]|[oO]|[yY][eE][sS]|[yY])$ ]]; then
   echoinfo "Suppression des fichiers YAML..."
   if rm -rf "${COMPOSE_DIR}"; then 
