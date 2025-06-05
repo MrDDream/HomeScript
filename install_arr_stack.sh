@@ -95,7 +95,6 @@ echo ""
 echo "Creating ${COMPOSE_DIR}/byparr.yaml and launching the Byparr service..."
 cat << EOF > "${COMPOSE_DIR}/byparr.yaml"
 ---
-version: "2.1"
 services:
   Byparr:
     image: ghcr.io/thephaseless/byparr:latest
@@ -118,7 +117,6 @@ docker-compose -f "${COMPOSE_DIR}/byparr.yaml" up -d
 echo "Creating ${COMPOSE_DIR}/emby.yaml and launching the Emby service..."
 cat << EOF > "${COMPOSE_DIR}/emby.yaml"
 ---
-version: "2.3"
 services:
   emby:
     image: emby/embyserver:latest
@@ -301,7 +299,6 @@ docker-compose -f "${COMPOSE_DIR}/sonarr.yaml" up -d
 echo "Creating ${COMPOSE_DIR}/watchtower.yaml and launching the Watchtower service..."
 cat << EOF > "${COMPOSE_DIR}/watchtower.yaml"
 ---
-version: "3.8" # Using a common recent version for Docker Compose features
 services:
   watchtower:
     image: containrrr/watchtower:latest
