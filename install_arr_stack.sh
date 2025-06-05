@@ -239,7 +239,6 @@ docker-compose -f "${COMPOSE_DIR}/qbitorrent.yaml" up -d
 # rm "${COMPOSE_DIR}/qbitorrent.yaml" # Uncomment to delete the file after use
 
 # --- Radarr Configuration ---
-# Note: MEDIA_ANIMATIONS_PATH and TMM_SCRIPTS_PATH are used below.
 # Ensure they are defined in the "Global Volume Paths" section or as environment variables if you uncomment them.
 echo "Creating ${COMPOSE_DIR}/radarr.yaml and launching the Radarr service..."
 cat << EOF > "${COMPOSE_DIR}/radarr.yaml"
@@ -257,9 +256,7 @@ services:
     volumes:
       - ${CONFIG_RADARR_PATH}:/config
       - ${MEDIA_MOVIES_PATH}:/movies
-      # - ${MEDIA_ANIMATIONS_PATH}:/animations # Uncomment if MEDIA_ANIMATIONS_PATH is defined
       - ${DOWNLOADS_PATH}:/downloads
-      # - ${TMM_SCRIPTS_PATH}:/scripts # Uncomment if TMM_SCRIPTS_PATH is defined. chmod +x /scripts/update_movie.sh && chmod 755 /scripts
     ports:
       - 7878:7878
     restart: unless-stopped
@@ -268,7 +265,6 @@ docker-compose -f "${COMPOSE_DIR}/radarr.yaml" up -d
 # rm "${COMPOSE_DIR}/radarr.yaml" # Uncomment to delete the file after use
 
 # --- Sonarr Configuration ---
-# Note: TMM_SCRIPTS_PATH is used below.
 # Ensure it is defined in the "Global Volume Paths" section or as an environment variable if you uncomment it.
 echo "Creating ${COMPOSE_DIR}/sonarr.yaml and launching the Sonarr service..."
 cat << EOF > "${COMPOSE_DIR}/sonarr.yaml"
@@ -287,7 +283,6 @@ services:
       - ${CONFIG_SONARR_PATH}:/config
       - ${MEDIA_TV_SHOWS_PATH}:/tv
       - ${DOWNLOADS_PATH}:/downloads
-      # - ${TMM_SCRIPTS_PATH}:/scripts # Uncomment if TMM_SCRIPTS_PATH is defined. chmod +x /scripts/update_tvshow.sh && chmod 755 /scripts
     ports:
       - 8989:8989
     restart: unless-stopped
