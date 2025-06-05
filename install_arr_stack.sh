@@ -204,7 +204,6 @@ generate_and_deploy() {
   case "$service_name" in
     "Emby")
       yaml_content="---
-version: \"\"
 services:
   emby:
     image: emby/embyserver:latest
@@ -226,7 +225,6 @@ services:
       ;;
     "Prowlarr")
       yaml_content="---
-version: \"\"
 services:
   prowlarr:
     image: lscr.io/linuxserver/prowlarr:latest
@@ -245,7 +243,6 @@ services:
       ;;
     "Radarr")
       yaml_content="---
-version: \"\"
 services:
   radarr:
     image: lscr.io/linuxserver/radarr:latest
@@ -266,7 +263,6 @@ services:
       ;;
     "Sonarr")
       yaml_content="---
-version: \"\"
 services:
   sonarr:
     image: lscr.io/linuxserver/sonarr:latest
@@ -287,7 +283,6 @@ services:
       ;;
     "Lidarr")
       yaml_content="---
-version: \"\"
 services:
   lidarr:
     image: lscr.io/linuxserver/lidarr:latest
@@ -309,7 +304,6 @@ services:
       ;;
     "Byparr")
       yaml_content="---
-version: \"\"
 services:
   Byparr:
     image: ghcr.io/thephaseless/byparr:latest
@@ -327,7 +321,6 @@ services:
       ;;
     "Jellyseerr")
       yaml_content="---
-version: \"\"
 services:
   jellyseerr:
     image: fallenbagel/jellyseerr:latest
@@ -347,7 +340,6 @@ services:
       ;;
     "QbitTorrent")
       yaml_content="---
-version: \"\"
 services:
   qbittorrent:
     image: lscr.io/linuxserver/qbittorrent:latest
@@ -371,7 +363,6 @@ services:
       ;;
     "Watchtower")
       yaml_content="---
-version: \"\"
 services:
   watchtower:
     image: containrrr/watchtower:latest
