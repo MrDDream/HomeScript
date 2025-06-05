@@ -45,6 +45,11 @@ MEDIA_MUSIC_PATH="${APP_DATA_BASE_PATH}/Music" # Or, e.g., "${APP_DATA_BASE_PATH
 # Downloads Path
 DOWNLOADS_PATH="${APP_DATA_BASE_PATH}/Torrents"
 
+# Note: The following paths were used in Radarr/Sonarr but not defined globally.
+# You may need to define them if they are not set as environment variables elsewhere.
+# MEDIA_ANIMATIONS_PATH="${APP_DATA_BASE_PATH}/Animations" # Example definition
+# TMM_SCRIPTS_PATH="${APP_DATA_BASE_PATH}/Scripts/tmm" # Example definition
+
 
 echo "--- Using Global Values ---"
 echo "Global PUID: ${GLOBAL_PUID}"
@@ -64,6 +69,9 @@ echo "Media TV Shows Path: ${MEDIA_TV_SHOWS_PATH}"
 echo "Media Movies Path: ${MEDIA_MOVIES_PATH}"
 echo "Media Music Path: ${MEDIA_MUSIC_PATH}"
 echo "Downloads Path: ${DOWNLOADS_PATH}"
+# If you define MEDIA_ANIMATIONS_PATH and TMM_SCRIPTS_PATH, uncomment these lines:
+# echo "Media Animations Path: ${MEDIA_ANIMATIONS_PATH}"
+# echo "TMM Scripts Path: ${TMM_SCRIPTS_PATH}"
 echo "---------------------------------------"
 echo ""
 
@@ -162,6 +170,7 @@ services:
     volumes:
       - ${CONFIG_LIDARR_PATH}:/config
       - ${MEDIA_MUSIC_PATH}:/data # This is where Lidarr will manage music files
+    restart: unless-stopped # Added restart policy for consistency
 EOF
 docker-compose -f lidarr.yaml up -d
 # rm lidarr.yaml # Uncomment to delete the file after use
@@ -218,6 +227,8 @@ docker-compose -f qbitorrent.yaml up -d
 # rm qbitorrent.yaml # Uncomment to delete the file after use
 
 # --- Radarr Configuration ---
+# Note: MEDIA_ANIMATIONS_PATH and TMM_SCRIPTS_PATH are used below.
+# Ensure they are defined in the "Global Volume Paths" section or as environment variables.
 echo "Creating radarr.yaml and launching the Radarr service..."
 cat << EOF > radarr.yaml
 ---
@@ -234,9 +245,9 @@ services:
     volumes:
       - ${CONFIG_RADARR_PATH}:/config
       - ${MEDIA_MOVIES_PATH}:/movies
-      - ${MEDIA_ANIMATIONS_PATH}:/animations
+      # - ${MEDIA_ANIMATIONS_PATH}:/animations # Uncomment if MEDIA_ANIMATIONS_PATH is defined
       - ${DOWNLOADS_PATH}:/downloads
-      - ${TMM_SCRIPTS_PATH}:/scripts #chmod +x /scripts/update_movie.sh && chmod 755 /scripts
+      # - ${TMM_SCRIPTS_PATH}:/scripts # Uncomment if TMM_SCRIPTS_PATH is defined. chmod +x /scripts/update_movie.sh && chmod 755 /scripts
     ports:
       - 7878:7878
     restart: unless-stopped
@@ -245,6 +256,8 @@ docker-compose -f radarr.yaml up -d
 # rm radarr.yaml # Uncomment to delete the file after use
 
 # --- Sonarr Configuration ---
+# Note: TMM_SCRIPTS_PATH is used below.
+# Ensure it is defined in the "Global Volume Paths" section or as an environment variable.
 echo "Creating sonarr.yaml and launching the Sonarr service..."
 cat << EOF > sonarr.yaml
 ---
@@ -262,7 +275,7 @@ services:
       - ${CONFIG_SONARR_PATH}:/config
       - ${MEDIA_TV_SHOWS_PATH}:/tv
       - ${DOWNLOADS_PATH}:/downloads
-      - ${TMM_SCRIPTS_PATH}:/scripts #chmod +x /scripts/update_tvshow.sh && chmod 755 /scripts
+      # - ${TMM_SCRIPTS_PATH}:/scripts # Uncomment if TMM_SCRIPTS_PATH is defined. chmod +x /scripts/update_tvshow.sh && chmod 755 /scripts
     ports:
       - 8989:8989
     restart: unless-stopped
@@ -270,8 +283,37 @@ EOF
 docker-compose -f sonarr.yaml up -d
 # rm sonarr.yaml # Uncomment to delete the file after use
 
+# --- Watchtower Configuration ---
+echo "Creating watchtower.yaml and launching the Watchtower service..."
+cat << EOF > watchtower.yaml
+---
+version: "3.8" # Using a common recent version for Docker Compose features
+services:
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: Watchtower # Capitalized for consistency with other container names in this script
+    environment:
+      - TZ=${GLOBAL_TZ}
+      # - WATCHTOWER_CLEANUP=true  # Uncomment to remove old images after update
+      # - WATCHTOWER_SCHEDULE="0 0 4 * * *" # Uncomment to specify a cron schedule (e.g., 4 AM daily)
+                                           # Default: checks every 24 hours from when it was started.
+                                           # Ensure your TZ is correct for cron interpretation if not UTC.
+      # - WATCHTOWER_POLL_INTERVAL=3600 # Uncomment to change polling interval (in seconds, e.g., 3600 for 1 hour)
+                                        # Default is 86400 (24 hours).
+                                        # Use this OR WATCHTOWER_SCHEDULE, not both typically.
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock # Essential for Watchtower to interact with Docker
+    restart: unless-stopped
+    # No 'com.centurylinklabs.watchtower.enable=true' label is strictly needed for Watchtower to update itself,
+    # as it updates itself by default unless configured otherwise.
+    # It will monitor all other containers that DO have this label set to true.
+EOF
+docker-compose -f watchtower.yaml up -d
+# rm watchtower.yaml # Uncomment to delete the file after use
+
 echo ""
 echo "--- End of Script ---"
-echo "All configured Docker Compose services have been launched with the Watchtower label."
+echo "All configured Docker Compose services have been launched."
+echo "Watchtower has also been started and will monitor labeled containers for updates."
 echo "Note: Temporary YAML files were created and then (if uncommented) deleted."
-echo "Check the logs of each container if you encounter problems (e.g., docker logs Byparr)."
+echo "Check the logs of each container if you encounter problems (e.g., docker logs Watchtower)."
