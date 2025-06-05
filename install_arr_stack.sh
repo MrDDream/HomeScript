@@ -1,33 +1,33 @@
 #!/bin/bash
 
-# NOTE: Ce script utilise des tableaux associatifs (declare -A) pour la sélection des services,
-# ce qui nécessite Bash version 4.0 ou une version ultérieure.
-# Les fonctions de prompt ont été modifiées pour éviter 'local -n' et améliorer
-# la compatibilité avec les versions de Bash antérieures à 4.3.
+# NOTE: This script uses associative arrays (declare -A) for service selection,
+# which requires Bash version 4.0 or later.
+# The prompt functions have been modified to avoid 'local -n' and improve
+# compatibility with Bash versions prior to 4.3.
 
-# --- Couleurs (Modifiées pour une interprétation correcte par read -p) ---
+# --- Colors (Modified for correct interpretation by read -p) ---
 RED=$'\033[0;31m'
 GREEN=$'\033[0;32m'
 YELLOW=$'\033[1;33m'
 BLUE=$'\033[0;34m'
 CYAN=$'\033[0;36m'
-NC=$'\033[0m' # Pas de couleur
+NC=$'\033[0m' # No Color
 
-# --- Fonctions utilitaires ---
+# --- Utility Functions ---
 echoinfo() {
   echo -e "${BLUE}INFO:${NC} $1"
 }
 
 echowarn() {
-  echo -e "${YELLOW}ATTENTION:${NC} $1"
+  echo -e "${YELLOW}WARNING:${NC} $1"
 }
 
 echoerror() {
-  echo -e "${RED}ERREUR:${NC} $1"
+  echo -e "${RED}ERROR:${NC} $1"
 }
 
 echosuccess() {
-  echo -e "${GREEN}SUCCÈS:${NC} $1"
+  echo -e "${GREEN}SUCCESS:${NC} $1"
 }
 
 is_number() {
@@ -37,7 +37,7 @@ is_number() {
 prompt_with_default() {
   local prompt_message="$1"
   local default_value="$2"
-  local result_var_name="$3" # Nom de la variable où stocker le résultat
+  local result_var_name="$3" # Name of the variable to store the result
   local input
 
   read -p "${CYAN}${prompt_message} [${default_value}]: ${NC}" input
@@ -47,7 +47,7 @@ prompt_with_default() {
 prompt_numeric_with_default() {
   local prompt_message="$1"
   local default_value="$2"
-  local result_var_name="$3" # Nom de la variable où stocker le résultat
+  local result_var_name="$3" # Name of the variable to store the result
   local current_value
 
   while true; do
@@ -57,60 +57,58 @@ prompt_numeric_with_default() {
     if is_number "$current_value"; then
       break
     else
-      echoerror "L'entrée doit être un nombre."
+      echoerror "Input must be a number."
     fi
   done
 }
 
 check_command() {
   if ! command -v "$1" &> /dev/null; then
-    echoerror "La commande '$1' est introuvable. Veuillez l'installer."
+    echoerror "Command '$1' not found. Please install it."
     exit 1
   fi
 }
 
-# Déterminer la commande docker compose à utiliser
+# Determine the docker compose command to use
 DOCKER_COMPOSE_CMD=""
 if command -v docker &> /dev/null && docker compose version &> /dev/null; then
     DOCKER_COMPOSE_CMD="docker compose"
 elif command -v docker-compose &> /dev/null; then
     DOCKER_COMPOSE_CMD="docker-compose"
 else
-    echoerror "Ni 'docker compose' (v2) ni 'docker-compose' (v1) n'a été trouvé. Veuillez installer Docker Compose."
+    echoerror "Neither 'docker compose' (v2) nor 'docker-compose' (v1) was found. Please install Docker Compose."
     exit 1
 fi
-echoinfo "Utilisation de la commande: $DOCKER_COMPOSE_CMD"
+echoinfo "Using command: $DOCKER_COMPOSE_CMD"
 
 
-# --- Vérification des dépendances ---
-echoinfo "Vérification des dépendances..."
+# --- Checking dependencies ---
+echoinfo "Checking dependencies..."
 check_command docker
 
-# --- Message de bienvenue ---
-echo -e "${GREEN}-------------------------------------------------------"
-echo -e " Bienvenue dans l'assistant de déploiement Docker Compose "
-echo -e "-------------------------------------------------------${NC}"
+# --- Welcome Message ---
+echo -e "${GREEN}---------------------------------------------"
+echo -e " Welcome to the Arr Deployment Wizard"
+echo -e "---------------------------------------------${NC}"
 echo
 
 # --- Prompt for Global Variables ---
-echo -e "${YELLOW}--- Configuration Globale ---${NC}"
+echo -e "${YELLOW}--- Global Configuration ---${NC}"
 DEFAULT_GLOBAL_PUID=1000
 DEFAULT_GLOBAL_PGID=1000
-DEFAULT_GLOBAL_TZ="Europe/Paris"
-DEFAULT_APP_DATA_BASE_PATH="/home/Docker"
+DEFAULT_GLOBAL_TZ="Europe/Paris" # You might want to change this default or prompt for it if targeting international users
+DEFAULT_APP_DATA_BASE_PATH="/home/Docker" # Consider making this more generic like /srv/docker or /opt/docker
 
-prompt_numeric_with_default "Entrez le PUID Global" "$DEFAULT_GLOBAL_PUID" "GLOBAL_PUID"
-prompt_numeric_with_default "Entrez le PGID Global" "$DEFAULT_GLOBAL_PGID" "GLOBAL_PGID"
-prompt_with_default "Entrez le Fuseau Horaire (TZ) Global" "$DEFAULT_GLOBAL_TZ" "GLOBAL_TZ"
+prompt_numeric_with_default "Enter Global PUID" "$DEFAULT_GLOBAL_PUID" "GLOBAL_PUID"
+prompt_numeric_with_default "Enter Global PGID" "$DEFAULT_GLOBAL_PGID" "GLOBAL_PGID"
+prompt_with_default "Enter Global Timezone (TZ)" "$DEFAULT_GLOBAL_TZ" "GLOBAL_TZ"
 echo
 
-echo -e "${YELLOW}--- Configuration des Chemins ---${NC}"
-prompt_with_default "Entrez le chemin de base pour les données des applications" "$DEFAULT_APP_DATA_BASE_PATH" "APP_DATA_BASE_PATH"
+echo -e "${YELLOW}--- Path Configuration ---${NC}"
+prompt_with_default "Enter the base path for application data" "$DEFAULT_APP_DATA_BASE_PATH" "APP_DATA_BASE_PATH"
 
 CONFIG_EMBY_PATH="${APP_DATA_BASE_PATH}/Configurations/EmbyServer"
 CONFIG_JELLYFIN_PATH="${APP_DATA_BASE_PATH}/Configurations/Jellyfin"
-JELLYFIN_CACHE_PATH="${APP_DATA_BASE_PATH}/Cache/Jellyfin" # Chemin pour le cache de Jellyfin
-JELLYFIN_FONTS_PATH="${APP_DATA_BASE_PATH}/Fonts/JellyfinCustom" # Chemin optionnel pour les polices custom Jellyfin
 
 CONFIG_JELLYSEERR_PATH="${APP_DATA_BASE_PATH}/Configurations/Jellyseerr"
 CONFIG_LIDARR_PATH="${APP_DATA_BASE_PATH}/Configurations/Lidarr"
@@ -120,63 +118,62 @@ CONFIG_RADARR_PATH="${APP_DATA_BASE_PATH}/Configurations/Radarr"
 CONFIG_SONARR_PATH="${APP_DATA_BASE_PATH}/Configurations/Sonarr"
 
 echo
-echo -e "${YELLOW}--- Configuration des Chemins Médias ---${NC}"
+echo -e "${YELLOW}--- Media Path Configuration ---${NC}"
 DEFAULT_MEDIA_TV_SHOWS_PATH="${APP_DATA_BASE_PATH}/Tvshows"
 DEFAULT_MEDIA_MOVIES_PATH="${APP_DATA_BASE_PATH}/Movies"
 DEFAULT_MEDIA_MUSIC_PATH="${APP_DATA_BASE_PATH}/Music"
 DEFAULT_DOWNLOADS_PATH="${APP_DATA_BASE_PATH}/Torrents"
 
-prompt_with_default "Entrez le chemin pour les Séries TV" "$DEFAULT_MEDIA_TV_SHOWS_PATH" "MEDIA_TV_SHOWS_PATH"
-prompt_with_default "Entrez le chemin pour les Films" "$DEFAULT_MEDIA_MOVIES_PATH" "MEDIA_MOVIES_PATH"
-prompt_with_default "Entrez le chemin pour la Musique" "$DEFAULT_MEDIA_MUSIC_PATH" "MEDIA_MUSIC_PATH"
-prompt_with_default "Entrez le chemin pour les Téléchargements" "$DEFAULT_DOWNLOADS_PATH" "DOWNLOADS_PATH"
+prompt_with_default "Enter the path for TV Shows" "$DEFAULT_MEDIA_TV_SHOWS_PATH" "MEDIA_TV_SHOWS_PATH"
+prompt_with_default "Enter the path for Movies" "$DEFAULT_MEDIA_MOVIES_PATH" "MEDIA_MOVIES_PATH"
+prompt_with_default "Enter the path for Music" "$DEFAULT_MEDIA_MUSIC_PATH" "MEDIA_MUSIC_PATH"
+prompt_with_default "Enter the path for Downloads" "$DEFAULT_DOWNLOADS_PATH" "DOWNLOADS_PATH"
 echo
 
 # --- Media Server Choice ---
-echo -e "${YELLOW}--- Choix du Serveur Multimédia ---${NC}"
+echo -e "${YELLOW}--- Media Server Choice ---${NC}"
 echo "1) Emby"
 echo "2) Jellyfin"
 MEDIA_SERVER_CHOICE_INPUT=""
 
 while true; do
-  read -p "${CYAN}Entrez votre choix (1 pour Emby, 2 pour Jellyfin): ${NC}" MEDIA_SERVER_CHOICE_INPUT
-  # Default choice removed as prompt now enforces 1 or 2
+  read -p "${CYAN}Enter your choice: ${NC}" MEDIA_SERVER_CHOICE_INPUT
   MEDIA_SERVER_CHOICE="${MEDIA_SERVER_CHOICE_INPUT}"
   if [[ "$MEDIA_SERVER_CHOICE" =~ ^[12]$ ]]; then
     break
   else
-    echoerror "Choix invalide. Veuillez entrer 1 ou 2."
+    echoerror "Invalid choice. Please enter 1 or 2."
   fi
 done
 
 MEDIA_SERVER_NAME=""
 if [ "$MEDIA_SERVER_CHOICE" = "1" ]; then
   MEDIA_SERVER_NAME="Emby"
-  echoinfo "Emby sera configuré."
+  echoinfo "Emby will be configured."
 elif [ "$MEDIA_SERVER_CHOICE" = "2" ]; then
   MEDIA_SERVER_NAME="Jellyfin"
-  echoinfo "Jellyfin sera configuré."
+  echoinfo "Jellyfin will be configured."
 fi
 echo
 
-# --- Services à déployer ---
-# Liste de base des services (sans Emby/Jellyfin initialement)
+# --- Services to deploy ---
+# Base list of services (initially without Emby/Jellyfin)
 BASE_SERVICES=("Prowlarr" "Radarr" "Sonarr" "Lidarr" "Byparr" "Jellyseerr" "QbitTorrent" "Watchtower")
 ORDERED_SERVICES_TO_DEPLOY=()
 
-# Ajoute le serveur multimédia choisi au début de la liste s'il a été sélectionné
+# Adds the chosen media server to the beginning of the list if selected
 if [ -n "$MEDIA_SERVER_NAME" ]; then
   ORDERED_SERVICES_TO_DEPLOY+=("$MEDIA_SERVER_NAME")
 fi
-# Ajoute les autres services
+# Adds the other services
 ORDERED_SERVICES_TO_DEPLOY+=("${BASE_SERVICES[@]}")
 
-# SERVICES_TO_DEPLOY est utilisé pour vérifier l'inclusion dans le résumé, etc.
+# SERVICES_TO_DEPLOY is used to check inclusion in the summary, etc.
 SERVICES_TO_DEPLOY=("${ORDERED_SERVICES_TO_DEPLOY[@]}")
 
-echoinfo "Ce script va configurer le déploiement pour les services suivants (dans cet ordre):"
+echoinfo "This script will configure deployment for the following services (in this order):"
 if [ ${#ORDERED_SERVICES_TO_DEPLOY[@]} -eq 0 ]; then
-  echoinfo "  (Aucun service sélectionné pour le déploiement)"
+  echoinfo "  (No service selected for deployment)"
 else
   for service_name in "${ORDERED_SERVICES_TO_DEPLOY[@]}"; do
     echoinfo "  - $service_name"
@@ -185,67 +182,67 @@ fi
 echo
 
 
-# --- Affichage du résumé et confirmation ---
-echo -e "${YELLOW}--- RÉSUMÉ DE LA CONFIGURATION ---${NC}"
-echo -e "${CYAN}Variables Globales:${NC}"
-echo "  PUID Global: ${GLOBAL_PUID}"
-echo "  PGID Global: ${GLOBAL_PGID}"
-echo "  TZ Global: ${GLOBAL_TZ}"
+# --- CONFIGURATION SUMMARY ---
+echo -e "${YELLOW}--- CONFIGURATION SUMMARY ---${NC}"
+echo -e "${CYAN}Global Variables:${NC}"
+echo "  Global PUID: ${GLOBAL_PUID}"
+echo "  Global PGID: ${GLOBAL_PGID}"
+echo "  Global TZ: ${GLOBAL_TZ}"
 echo
-echo -e "${CYAN}Chemins de Configuration:${NC}"
-echo "  Chemin de base des données: ${APP_DATA_BASE_PATH}"
-if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Emby " ]]; then echo "  Config Emby: ${CONFIG_EMBY_PATH}"; fi
-if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Jellyfin " ]]; then echo "  Config Jellyfin: ${CONFIG_JELLYFIN_PATH}"; fi
-if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Jellyseerr " ]]; then echo "  Config Jellyseerr: ${CONFIG_JELLYSEERR_PATH}"; fi
-if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Lidarr " ]]; then echo "  Config Lidarr: ${CONFIG_LIDARR_PATH}"; fi
-if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Prowlarr " ]]; then echo "  Config Prowlarr: ${CONFIG_PROWLARR_PATH}"; fi
-if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " QbitTorrent " ]]; then echo "  Config QbitTorrent: ${CONFIG_QBITTORRENT_PATH}"; fi
-if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Radarr " ]]; then echo "  Config Radarr: ${CONFIG_RADARR_PATH}"; fi
-if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Sonarr " ]]; then echo "  Config Sonarr: ${CONFIG_SONARR_PATH}"; fi
+echo -e "${CYAN}Configuration Paths:${NC}"
+echo "  Base data path: ${APP_DATA_BASE_PATH}"
+if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Emby " ]]; then echo "  Emby Config: ${CONFIG_EMBY_PATH}"; fi
+if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Jellyfin " ]]; then echo "  Jellyfin Config: ${CONFIG_JELLYFIN_PATH}"; fi
+if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Jellyseerr " ]]; then echo "  Jellyseerr Config: ${CONFIG_JELLYSEERR_PATH}"; fi
+if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Lidarr " ]]; then echo "  Lidarr Config: ${CONFIG_LIDARR_PATH}"; fi
+if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Prowlarr " ]]; then echo "  Prowlarr Config: ${CONFIG_PROWLARR_PATH}"; fi
+if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " QbitTorrent " ]]; then echo "  QbitTorrent Config: ${CONFIG_QBITTORRENT_PATH}"; fi
+if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Radarr " ]]; then echo "  Radarr Config: ${CONFIG_RADARR_PATH}"; fi
+if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Sonarr " ]]; then echo "  Sonarr Config: ${CONFIG_SONARR_PATH}"; fi
 echo
-echo -e "${CYAN}Chemins Médias:${NC}"
-echo "  Séries TV: ${MEDIA_TV_SHOWS_PATH}"
-echo "  Films: ${MEDIA_MOVIES_PATH}"
-echo "  Musique: ${MEDIA_MUSIC_PATH}"
-echo "  Téléchargements: ${DOWNLOADS_PATH}"
+echo -e "${CYAN}Media Paths:${NC}"
+echo "  TV Shows: ${MEDIA_TV_SHOWS_PATH}"
+echo "  Movies: ${MEDIA_MOVIES_PATH}"
+echo "  Music: ${MEDIA_MUSIC_PATH}"
+echo "  Downloads: ${DOWNLOADS_PATH}"
 echo
-echo -e "${CYAN}Services à déployer:${NC}"
+echo -e "${CYAN}Services to deploy:${NC}"
 if [ ${#SERVICES_TO_DEPLOY[@]} -gt 0 ]; then
   services_to_deploy_sorted=($(printf '%s\n' "${SERVICES_TO_DEPLOY[@]}" | sort)) # Sorting only for display
   for service in "${services_to_deploy_sorted[@]}"; do
     echo "  - $service"
   done
 else
-    echo "  (Aucun)"
+    echo "  (None)"
 fi
 echo
 
-read -p "${YELLOW}Souhaitez-vous continuer avec cette configuration ? (o/N): ${NC}" confirm
-if [[ ! "$confirm" =~ ^([oO][uU][iI]|[oO]|[yY][eE][sS]|[yY])$ ]]; then
-  echoinfo "Opération annulée par l'utilisateur."
+read -p "${YELLOW}Do you want to continue with this configuration? (y/N): ${NC}" confirm
+if [[ ! "$confirm" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+  echoinfo "Operation cancelled by the user."
   exit 0
 fi
 echo
 
-# --- Création du sous-répertoire compose ---
+# --- Creating compose subdirectory ---
 COMPOSE_DIR="compose"
-echoinfo "Vérification/Création du répertoire '${COMPOSE_DIR}'..."
+echoinfo "Checking/Creating directory '${COMPOSE_DIR}'..."
 mkdir -p "${COMPOSE_DIR}"
 echo "---------------------------------------"
 
-# --- Fonctions de génération et de lancement ---
+# --- Generation and Launch Functions ---
 deploy_service() {
   local service_name_proper_case="$1"
   local yaml_content="$2"
   local yaml_file="${COMPOSE_DIR}/${service_name_proper_case,,}.yaml" # lowercase filename
 
-  echoinfo "Création de ${yaml_file} et lancement du service ${service_name_proper_case}..."
+  echoinfo "Creating ${yaml_file} and starting service ${service_name_proper_case}..."
   echo -e "$yaml_content" > "$yaml_file"
 
   if $DOCKER_COMPOSE_CMD -f "$yaml_file" up -d; then
-    echosuccess "Service ${service_name_proper_case} démarré."
+    echosuccess "Service ${service_name_proper_case} started."
   else
-    echoerror "Échec du démarrage du service ${service_name_proper_case}. Vérifiez ${yaml_file} et les logs Docker."
+    echoerror "Failed to start service ${service_name_proper_case}. Check ${yaml_file} and Docker logs."
   fi
 }
 
@@ -270,7 +267,7 @@ services:
       - ${CONFIG_EMBY_PATH}:/config
       - ${MEDIA_TV_SHOWS_PATH}:/mnt/tvshows
       - ${MEDIA_MOVIES_PATH}:/mnt/movies
-      - ${MEDIA_MUSIC_PATH}:/mnt/music # Ajout du chemin musique pour Emby
+      - ${MEDIA_MUSIC_PATH}:/mnt/music # Added music path for Emby
     ports:
       - \"8096:8096\"
       - \"8920:8920\"
@@ -288,7 +285,7 @@ services:
       - PUID=${GLOBAL_PUID}
       - PGID=${GLOBAL_PGID}
       - TZ=${GLOBAL_TZ}
-      # - JELLYFIN_PublishedServerUrl=http://example.com # Optionnel: à configurer dans Jellyfin ou décommenter
+      # - JELLYFIN_PublishedServerUrl=http://example.com # Optional: configure in Jellyfin or uncomment
     volumes:
       - ${CONFIG_JELLYFIN_PATH}/config:/config
       - ${CONFIG_JELLYFIN_PATH}/cache:/cache # Corrected from JELLYFIN_CACHE_PATH to actual mount
@@ -297,7 +294,7 @@ services:
       - ${MEDIA_MUSIC_PATH}:/media/music
     ports:
       - \"8096:8096\"
-      - \"8920:8920\" # Port HTTPS standard, comme Emby
+      - \"8920:8920\" # Standard HTTPS port, like Emby
     restart: unless-stopped"
       ;;
     "Prowlarr")
@@ -460,7 +457,7 @@ services:
     restart: unless-stopped"
       ;;
     *)
-      echowarn "Aucune configuration YAML définie pour le service : $service_name"
+      echowarn "No YAML configuration defined for service: $service_name"
       return
       ;;
   esac
@@ -490,65 +487,64 @@ services:
   fi
 }
 
-# --- Boucle de déploiement principale ---
+# --- Main Deployment Loop ---
 if [ ${#ORDERED_SERVICES_TO_DEPLOY[@]} -gt 0 ]; then
-  echoinfo "Déploiement des services configurés..."
+  echoinfo "Deploying configured services..."
   for service_to_run in "${ORDERED_SERVICES_TO_DEPLOY[@]}"; do
     generate_and_deploy "$service_to_run"
     echo "---------------------------------------"
   done
 else
-    echoinfo "Aucun service n'a été sélectionné pour le déploiement."
+    echoinfo "No services were selected for deployment."
 fi
 
 
-# --- Nettoyage optionnel des fichiers YAML ---
+# --- Optional YAML File Cleanup ---
 if [ ${#ORDERED_SERVICES_TO_DEPLOY[@]} -gt 0 ]; then
     echo
-    read -p "${CYAN}Souhaitez-vous supprimer les fichiers YAML générés dans le répertoire '${COMPOSE_DIR}' ? (o/N): ${NC}" cleanup_choice
-    if [[ "$cleanup_choice" =~ ^([oO][uU][iI]|[oO]|[yY][eE][sS]|[yY])$ ]]; then
-    echoinfo "Suppression des fichiers YAML..."
+    read -p "${CYAN}Do you want to delete the generated YAML files in the '${COMPOSE_DIR}' directory? (y/N): ${NC}" cleanup_choice
+    if [[ "$cleanup_choice" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+    echoinfo "Deleting YAML files..."
     if rm -rf "${COMPOSE_DIR}"; then
-        echosuccess "Répertoire '${COMPOSE_DIR}' et ses fichiers YAML supprimés."
+        echosuccess "Directory '${COMPOSE_DIR}' and its YAML files deleted."
     else
-        echoerror "Échec de la suppression du répertoire '${COMPOSE_DIR}'."
+        echoerror "Failed to delete directory '${COMPOSE_DIR}'."
     fi
     else
-    echoinfo "Les fichiers YAML sont conservés dans le répertoire '${COMPOSE_DIR}'."
+    echoinfo "YAML files are kept in the '${COMPOSE_DIR}' directory."
     fi
 fi
 
-# --- État Simplifié des Conteneurs Docker ---
+# --- Simplified Docker Container Status ---
 if [ ${#ORDERED_SERVICES_TO_DEPLOY[@]} -gt 0 ]; then
   echo
-  echoinfo "--- État Simplifié des Conteneurs Docker Déployés ---"
+  echoinfo "--- Simplified Status of Deployed Docker Containers ---"
   for service_name_status in "${ORDERED_SERVICES_TO_DEPLOY[@]}"; do
-    # Le nom du conteneur est supposé être le même que le nom du service (ex: Emby, Prowlarr)
-    # car container_name est défini ainsi dans les fichiers YAML.
+    # The container name is assumed to be the same as the service name (e.g., Emby, Prowlarr)
+    # as container_name is defined this way in the YAML files.
     container_state=$(docker inspect --format='{{.State.Status}}' "${service_name_status}" 2>/dev/null)
-    exit_code_inspect=$? # Récupère le code de sortie de la commande docker inspect
+    exit_code_inspect=$? # Get the exit code of the docker inspect command
 
-    if [ $exit_code_inspect -eq 0 ]; then # Si docker inspect a réussi
+    if [ $exit_code_inspect -eq 0 ]; then # If docker inspect succeeded
       if [ "$container_state" == "running" ]; then
-        echo -e "${CYAN}Statut pour ${service_name_status}:${NC} ${GREEN}SUCCESS (Up)${NC}"
+        echo -e "${CYAN}Status for ${service_name_status}:${NC} ${GREEN}SUCCESS (Up)${NC}"
       else
-        # Les autres états (exited, created, restarting, paused, dead) sont considérés comme FAILED
-        echo -e "${CYAN}Statut pour ${service_name_status}:${NC} ${RED}FAILED (État: ${container_state})${NC}"
+        # Other states (exited, created, restarting, paused, dead) are considered FAILED
+        echo -e "${CYAN}Status for ${service_name_status}:${NC} ${RED}FAILED (State: ${container_state})${NC}"
       fi
     else
-      # Si docker inspect échoue, le conteneur n'est probablement pas trouvé ou une autre erreur s'est produite.
-      echo -e "${CYAN}Statut pour ${service_name_status}:${NC} ${RED}FAILED (Non trouvé ou erreur lors de l'inspection)${NC}"
+      # If docker inspect fails, the container is likely not found or another error occurred.
+      echo -e "${CYAN}Status for ${service_name_status}:${NC} ${RED}FAILED (Not found or error during inspection)${NC}"
     fi
   done
   echo "---------------------------------------"
 fi
 
 echo
-echosuccess "--- Fin du Script ---"
+echosuccess "--- End of Script ---"
 if [ ${#ORDERED_SERVICES_TO_DEPLOY[@]} -gt 0 ]; then
-  echoinfo "Les services Docker Compose configurés ont été traités."
-  echoinfo "Vérifiez les logs de chaque conteneur si vous rencontrez des problèmes (ex: docker logs NomDuConteneur)."
-  echoinfo "Exemple pour Watchtower: docker logs Watchtower"
+  echoinfo "Configured Docker Compose services have been processed."
+  echoinfo "Check the logs of each container if you encounter problems (Example for Watchtower: docker logs Watchtower)."
 else
-  echoinfo "Aucun service n'a été configuré pour le déploiement."
+  echoinfo "No services were configured for deployment."
 fi
