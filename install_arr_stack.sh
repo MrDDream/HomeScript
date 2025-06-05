@@ -116,9 +116,6 @@ services:
     ports:
       - 8096:8096 # HTTP port
       - 8920:8920 # HTTPS port
-    devices:
-      - /dev/dri:/dev/dri # VAAPI/NVDEC/NVENC render nodes
-      - /dev/vchiq:/dev/vchiq # MMAL/OMX on Raspberry Pi
     restart: on-failure
 EOF
 docker-compose -f emby.yaml up -d
