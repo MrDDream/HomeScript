@@ -518,11 +518,28 @@ if [ ${#ORDERED_SERVICES_TO_DEPLOY[@]} -gt 0 ]; then
     fi
 fi
 
+# --- État des Conteneurs Docker ---
+if [ ${#ORDERED_SERVICES_TO_DEPLOY[@]} -gt 0 ]; then
+  echo
+  echoinfo "--- État des Conteneurs Docker Déployés ---"
+  echoinfo "Affichage du statut pour chaque service configuré (le nom du conteneur doit correspondre au nom du service):"
+  for service_name_status in "${ORDERED_SERVICES_TO_DEPLOY[@]}"; do
+    echo -e "${CYAN}Statut pour ${service_name_status}:${NC}"
+    # The script defines container_name in YAML as the service name (e.g., container_name: Prowlarr)
+    # So, service_name_status can be used directly to filter by container name.
+    docker ps -a --filter "name=^${service_name_status}$" 
+    # Adding ^ and $ for exact match, though Docker's filter might behave like 'contains' by default for 'name'.
+    # Exact match is safer if other containers might have similar names.
+    echo "---------------------------------------" # Separator for readability
+  done
+fi
+
 echo
 echosuccess "--- Fin du Script ---"
 if [ ${#ORDERED_SERVICES_TO_DEPLOY[@]} -gt 0 ]; then
   echoinfo "Les services Docker Compose configurés ont été traités."
-  echoinfo "Vérifiez les logs de chaque conteneur si vous rencontrez des problèmes (ex: $DOCKER_COMPOSE_CMD logs Watchtower)."
+  echoinfo "Vérifiez les logs de chaque conteneur si vous rencontrez des problèmes (ex: docker logs NomDuConteneur)."
+  echoinfo "Exemple pour Watchtower: docker logs Watchtower"
 else
   echoinfo "Aucun service n'a été configuré pour le déploiement."
 fi
