@@ -132,13 +132,13 @@ prompt_with_default "Entrez le chemin pour les Téléchargements" "$DEFAULT_DOWN
 echo
 
 # --- Sélection des services à déployer ---
-SERVICES_AVAILABLE=("Byparr" "Emby" "Jellyseerr" "Lidarr" "Prowlarr" "QbitTorrent" "Radarr" "Sonarr" "Watchtower")
+SERVICES_AVAILABLE=("Emby" "Prowlarr" "Radarr" "Sonarr" "Lidarr" "Byparr" "Jellyseerr" "QbitTorrent" "Watchtower")
 declare -A SERVICES_TO_DEPLOY_MAP 
 
 echo -e "${YELLOW}--- Sélection des Services ---${NC}"
 options_for_select=("${SERVICES_AVAILABLE[@]}" "Déployer TOUS les services listés ci-dessus" "Valider la sélection et continuer")
 
-PS3="$(echo -e ${CYAN}"Choisissez une option (ajoutez/retirez des services, puis validez) : "${NC})" # PS3 est géré différemment par select, $(echo -e) est généralement OK ici
+PS3="$(echo -e ${CYAN}"Choisissez une option (ajoutez/retirez des services, puis validez) : "${NC})" 
 
 while true; do
     current_selection_display=""
@@ -156,7 +156,7 @@ while true; do
                 break 2 
             fi
         elif [[ "$opt" == "Déployer TOUS les services listés ci-dessus" ]]; then
-            for service_name in "${SERVICES_AVAILABLE[@]}"; do
+            for service_name in "${SERVICES_AVAILABLE[@]}"; do # Uses the reordered SERVICES_AVAILABLE
                 SERVICES_TO_DEPLOY_MAP["$service_name"]=1
             done
             echoinfo "Tous les services ont été sélectionnés pour déploiement."
@@ -177,6 +177,7 @@ while true; do
     done
 done
 
+# This array is used for the summary, order from associative array keys is not guaranteed
 SERVICES_TO_DEPLOY=("${!SERVICES_TO_DEPLOY_MAP[@]}") 
 
 if [ ${#SERVICES_TO_DEPLOY[@]} -eq 0 ]; then
@@ -194,6 +195,7 @@ echo "  TZ Global: ${GLOBAL_TZ}"
 echo
 echo -e "${CYAN}Chemins de Configuration:${NC}"
 echo "  Chemin de base des données: ${APP_DATA_BASE_PATH}"
+# The summary checks if services are in SERVICES_TO_DEPLOY (which comes from the map)
 if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Emby " ]]; then echo "  Config Emby: ${CONFIG_EMBY_PATH}"; fi
 if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Jellyseerr " ]]; then echo "  Config Jellyseerr: ${CONFIG_JELLYSEERR_PATH}"; fi
 if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Lidarr " ]]; then echo "  Config Lidarr: ${CONFIG_LIDARR_PATH}"; fi
@@ -209,13 +211,13 @@ echo "  Musique: ${MEDIA_MUSIC_PATH}"
 echo "  Téléchargements: ${DOWNLOADS_PATH}"
 echo
 echo -e "${CYAN}Services à déployer:${NC}"
+# Summary is alphabetically sorted
 services_to_deploy_sorted=($(printf '%s\n' "${SERVICES_TO_DEPLOY[@]}" | sort))
 for service in "${services_to_deploy_sorted[@]}"; do
   echo "  - $service"
 done
 echo
 
-# Modification ici: invite directe pour read -p (Ligne 224 dans la version précédente)
 read -p "${YELLOW}Souhaitez-vous continuer avec cette configuration ? (o/N): ${NC}" confirm
 if [[ ! "$confirm" =~ ^([oO][uU][iI]|[oO]|[yY][eE][sS]|[yY])$ ]]; then
   echoinfo "Opération annulée par l'utilisateur."
@@ -233,7 +235,7 @@ echo "---------------------------------------"
 deploy_service() {
   local service_name_proper_case="$1" 
   local yaml_content="$2"
-  local yaml_file="${COMPOSE_DIR}/${service_name_proper_case,,}.yaml"
+  local yaml_file="${COMPOSE_DIR}/${service_name_proper_case,,}.yaml" # Filename uses lowercase
 
   echoinfo "Création de ${yaml_file} et lancement du service ${service_name_proper_case}..."
   echo -e "$yaml_content" > "$yaml_file"
@@ -250,27 +252,9 @@ generate_and_deploy() {
   local yaml_content=""
 
   case "$service_name" in
-    "Byparr")
-      yaml_content="---
-version: \"3.8\"
-services:
-  Byparr:
-    image: ghcr.io/thephaseless/byparr:latest
-    container_name: Byparr
-    labels:
-      - com.centurylinklabs.watchtower.enable=true
-    environment:
-      - LOG_LEVEL=\${LOG_LEVEL:-info}
-      - LOG_HTML=\${LOG_HTML:-false}
-      - CAPTCHA_SOLVER=\${CAPTCHA_SOLVER:-none}
-      - TZ=${GLOBAL_TZ}
-    ports:
-      - 8191:8191
-    restart: unless-stopped"
-      ;;
     "Emby")
       yaml_content="---
-version: \"3.8\"
+version: \"\"
 services:
   emby:
     image: emby/embyserver:latest
@@ -290,29 +274,70 @@ services:
       - 8920:8920
     restart: on-failure"
       ;;
-    "Jellyseerr")
+    "Prowlarr")
       yaml_content="---
-version: \"3.8\"
+version: \"\"
 services:
-  jellyseerr:
-    image: fallenbagel/jellyseerr:latest
-    container_name: Jellyseerr
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: Prowlarr
     labels:
       - com.centurylinklabs.watchtower.enable=true
     environment:
-      - LOG_LEVEL=info
+      - PUID=${GLOBAL_PUID}
+      - PGID=${GLOBAL_PGID}
       - TZ=${GLOBAL_TZ}
-      - PORT=5055
-      - JELLYFIN_TYPE=emby
-    ports:
-      - 5055:5055
     volumes:
-      - ${CONFIG_JELLYSEERR_PATH}:/app/config
+      - ${CONFIG_PROWLARR_PATH}:/config
+    ports:
+      - 9696:9696
+    restart: unless-stopped"
+      ;;
+    "Radarr")
+      yaml_content="---
+version: \"\"
+services:
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: Radarr
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+    environment:
+      - PUID=${GLOBAL_PUID}
+      - PGID=${GLOBAL_PGID}
+      - TZ=${GLOBAL_TZ}
+    volumes:
+      - ${CONFIG_RADARR_PATH}:/config
+      - ${MEDIA_MOVIES_PATH}:/movies
+      - ${DOWNLOADS_PATH}:/downloads
+    ports:
+      - 7878:7878
+    restart: unless-stopped"
+      ;;
+    "Sonarr")
+      yaml_content="---
+version: \"\"
+services:
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: Sonarr
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+    environment:
+      - PUID=${GLOBAL_PUID}
+      - PGID=${GLOBAL_PGID}
+      - TZ=${GLOBAL_TZ}
+    volumes:
+      - ${CONFIG_SONARR_PATH}:/config
+      - ${MEDIA_TV_SHOWS_PATH}:/tv
+      - ${DOWNLOADS_PATH}:/downloads
+    ports:
+      - 8989:8989
     restart: unless-stopped"
       ;;
     "Lidarr")
       yaml_content="---
-version: \"3.8\"
+version: \"\"
 services:
   lidarr:
     image: lscr.io/linuxserver/lidarr:latest
@@ -332,28 +357,47 @@ services:
       - ${DOWNLOADS_PATH}:/downloads
     restart: unless-stopped"
       ;;
-    "Prowlarr")
+    "Byparr") # Corrected name as in original script for consistency
       yaml_content="---
-version: \"3.8\"
+version: \"\"
 services:
-  prowlarr:
-    image: lscr.io/linuxserver/prowlarr:latest
-    container_name: Prowlarr
+  Byparr:
+    image: ghcr.io/thephaseless/byparr:latest
+    container_name: Byparr
     labels:
       - com.centurylinklabs.watchtower.enable=true
     environment:
-      - PUID=${GLOBAL_PUID}
-      - PGID=${GLOBAL_PGID}
+      - LOG_LEVEL=\${LOG_LEVEL:-info}
+      - LOG_HTML=\${LOG_HTML:-false}
+      - CAPTCHA_SOLVER=\${CAPTCHA_SOLVER:-none}
       - TZ=${GLOBAL_TZ}
-    volumes:
-      - ${CONFIG_PROWLARR_PATH}:/config
     ports:
-      - 9696:9696
+      - 8191:8191
     restart: unless-stopped"
       ;;
-    "QbitTorrent")
+    "Jellyseerr") # Corrected name as in original script
       yaml_content="---
-version: \"3.8\"
+version: \"\"
+services:
+  jellyseerr:
+    image: fallenbagel/jellyseerr:latest
+    container_name: Jellyseerr
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+    environment:
+      - LOG_LEVEL=info
+      - TZ=${GLOBAL_TZ}
+      - PORT=5055
+      - JELLYFIN_TYPE=emby
+    ports:
+      - 5055:5055
+    volumes:
+      - ${CONFIG_JELLYSEERR_PATH}:/app/config
+    restart: unless-stopped"
+      ;;
+    "QbitTorrent") # Corrected name as in original script
+      yaml_content="---
+version: \"\"
 services:
   qbittorrent:
     image: lscr.io/linuxserver/qbittorrent:latest
@@ -375,51 +419,9 @@ services:
       - 6881:6881/udp
     restart: unless-stopped"
       ;;
-    "Radarr")
-      yaml_content="---
-version: \"3.8\"
-services:
-  radarr:
-    image: lscr.io/linuxserver/radarr:latest
-    container_name: Radarr
-    labels:
-      - com.centurylinklabs.watchtower.enable=true
-    environment:
-      - PUID=${GLOBAL_PUID}
-      - PGID=${GLOBAL_PGID}
-      - TZ=${GLOBAL_TZ}
-    volumes:
-      - ${CONFIG_RADARR_PATH}:/config
-      - ${MEDIA_MOVIES_PATH}:/movies
-      - ${DOWNLOADS_PATH}:/downloads
-    ports:
-      - 7878:7878
-    restart: unless-stopped"
-      ;;
-    "Sonarr")
-      yaml_content="---
-version: \"3.8\"
-services:
-  sonarr:
-    image: lscr.io/linuxserver/sonarr:latest
-    container_name: Sonarr
-    labels:
-      - com.centurylinklabs.watchtower.enable=true
-    environment:
-      - PUID=${GLOBAL_PUID}
-      - PGID=${GLOBAL_PGID}
-      - TZ=${GLOBAL_TZ}
-    volumes:
-      - ${CONFIG_SONARR_PATH}:/config
-      - ${MEDIA_TV_SHOWS_PATH}:/tv
-      - ${DOWNLOADS_PATH}:/downloads
-    ports:
-      - 8989:8989
-    restart: unless-stopped"
-      ;;
     "Watchtower")
       yaml_content="---
-version: \"3.8\"
+version: \"\"
 services:
   watchtower:
     image: containrrr/watchtower:latest
@@ -444,15 +446,22 @@ services:
   fi
 }
 
+# --- Boucle de déploiement principale ---
+echoinfo "Traitement des services sélectionnés dans l'ordre défini..."
+# This array defines the deployment order.
+# Service names must exactly match the keys used in SERVICES_TO_DEPLOY_MAP and case statements.
+ORDERED_SERVICES_FOR_DEPLOYMENT=("Emby" "Prowlarr" "Radarr" "Sonarr" "Lidarr" "Byparr" "Jellyseerr" "QbitTorrent" "Watchtower")
 
-for service_to_run in "${SERVICES_TO_DEPLOY[@]}"; do
-  generate_and_deploy "$service_to_run"
-  echo "---------------------------------------"
+for service_to_run in "${ORDERED_SERVICES_FOR_DEPLOYMENT[@]}"; do
+  # Check if the service was actually selected by the user (is a key in the map)
+  if [[ -n "${SERVICES_TO_DEPLOY_MAP[$service_to_run]}" ]]; then
+    generate_and_deploy "$service_to_run"
+    echo "---------------------------------------"
+  fi
 done
 
 # --- Nettoyage optionnel des fichiers YAML ---
 echo
-# Modification ici: invite directe pour read -p
 read -p "${CYAN}Souhaitez-vous supprimer les fichiers YAML générés dans le répertoire '${COMPOSE_DIR}' ? (o/N): ${NC}" cleanup_choice
 if [[ "$cleanup_choice" =~ ^([oO][uU][iI]|[oO]|[yY][eE][sS]|[yY])$ ]]; then
   echoinfo "Suppression des fichiers YAML..."
@@ -467,7 +476,7 @@ fi
 
 echo
 echosuccess "--- Fin du Script ---"
-if [ ${#SERVICES_TO_DEPLOY[@]} -gt 0 ]; then
+if [ ${#SERVICES_TO_DEPLOY_MAP[@]} -gt 0 ]; then # Check if any service was selected, using the map count
   echoinfo "Les services Docker Compose sélectionnés ont été traités."
   echoinfo "Vérifiez les logs de chaque conteneur si vous rencontrez des problèmes (ex: $DOCKER_COMPOSE_CMD logs Watchtower)."
 else
