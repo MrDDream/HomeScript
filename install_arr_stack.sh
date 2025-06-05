@@ -139,8 +139,9 @@ echo "2) Jellyfin"
 MEDIA_SERVER_CHOICE_INPUT=""
 
 while true; do
-  read -p "${CYAN}Entrez votre choix (1 pour Emby, 2 pour Jellyfin) [3]: ${NC}" MEDIA_SERVER_CHOICE_INPUT
-  MEDIA_SERVER_CHOICE="${MEDIA_SERVER_CHOICE_INPUT:-3}"
+  read -p "${CYAN}Entrez votre choix (1 pour Emby, 2 pour Jellyfin): ${NC}" MEDIA_SERVER_CHOICE_INPUT
+  # Default choice removed as prompt now enforces 1 or 2
+  MEDIA_SERVER_CHOICE="${MEDIA_SERVER_CHOICE_INPUT}"
   if [[ "$MEDIA_SERVER_CHOICE" =~ ^[12]$ ]]; then
     break
   else
@@ -194,7 +195,7 @@ echo
 echo -e "${CYAN}Chemins de Configuration:${NC}"
 echo "  Chemin de base des données: ${APP_DATA_BASE_PATH}"
 if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Emby " ]]; then echo "  Config Emby: ${CONFIG_EMBY_PATH}"; fi
-if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Jellyfin " ]]; then echo "  Config Jellyfin: ${CONFIG_JELLYFIN_PATH}"
+if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Jellyfin " ]]; then echo "  Config Jellyfin: ${CONFIG_JELLYFIN_PATH}"; fi
 if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Jellyseerr " ]]; then echo "  Config Jellyseerr: ${CONFIG_JELLYSEERR_PATH}"; fi
 if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Lidarr " ]]; then echo "  Config Lidarr: ${CONFIG_LIDARR_PATH}"; fi
 if [[ " ${SERVICES_TO_DEPLOY[@]} " =~ " Prowlarr " ]]; then echo "  Config Prowlarr: ${CONFIG_PROWLARR_PATH}"; fi
@@ -290,7 +291,7 @@ services:
       # - JELLYFIN_PublishedServerUrl=http://example.com # Optionnel: à configurer dans Jellyfin ou décommenter
     volumes:
       - ${CONFIG_JELLYFIN_PATH}/config:/config
-      - ${CONFIG_JELLYFIN_PATH}/cache:/cache
+      - ${CONFIG_JELLYFIN_PATH}/cache:/cache # Corrected from JELLYFIN_CACHE_PATH to actual mount
       - ${MEDIA_TV_SHOWS_PATH}:/media/tvshows
       - ${MEDIA_MOVIES_PATH}:/media/movies
       - ${MEDIA_MUSIC_PATH}:/media/music
@@ -396,6 +397,12 @@ services:
     restart: unless-stopped"
       ;;
     "Jellyseerr")
+      # Dynamically set JELLYFIN_TYPE based on the user's media server choice
+      local selected_media_server_type_lowercase="emby" # Default to emby if somehow MEDIA_SERVER_NAME is not set
+      if [ -n "$MEDIA_SERVER_NAME" ]; then
+          selected_media_server_type_lowercase=$(echo "$MEDIA_SERVER_NAME" | tr '[:upper:]' '[:lower:]')
+      fi
+
       yaml_content="---
 services:
   jellyseerr:
@@ -407,7 +414,7 @@ services:
       - LOG_LEVEL=info
       - TZ=${GLOBAL_TZ}
       - PORT=5055 # Jellyseerr uses PORT for its internal port
-      - JELLYFIN_TYPE=emby # Default, user can change in Jellyseerr UI
+      - JELLYFIN_TYPE=${selected_media_server_type_lowercase} # Dynamically set
     ports:
       - \"5055:5055\" # Expose the port defined by PORT env var
     volumes:
@@ -460,11 +467,10 @@ services:
 
   if [ -n "$yaml_content" ]; then
     # Create necessary config directories before deploying
-    # This is a good practice, especially for rootless docker or strict permissions
     if [[ "$service_name" == "Emby" ]] && [ ! -d "${CONFIG_EMBY_PATH}" ]; then mkdir -p "${CONFIG_EMBY_PATH}"; fi
     if [[ "$service_name" == "Jellyfin" ]]; then
-        if [ ! -d "${CONFIG_JELLYFIN_PATH}" ]; then mkdir -p "${CONFIG_JELLYFIN_PATH}"; fi
-        if [ ! -d "${JELLYFIN_CACHE_PATH}" ]; then mkdir -p "${JELLYFIN_CACHE_PATH}"; fi
+        if [ ! -d "${CONFIG_JELLYFIN_PATH}/config" ]; then mkdir -p "${CONFIG_JELLYFIN_PATH}/config"; fi # Ensure config subfolder exists
+        if [ ! -d "${CONFIG_JELLYFIN_PATH}/cache" ]; then mkdir -p "${CONFIG_JELLYFIN_PATH}/cache"; fi   # Ensure cache subfolder exists
         # User should create JELLYFIN_FONTS_PATH if they intend to use it
     fi
     if [[ "$service_name" == "Jellyseerr" ]] && [ ! -d "${CONFIG_JELLYSEERR_PATH}" ]; then mkdir -p "${CONFIG_JELLYSEERR_PATH}"; fi
