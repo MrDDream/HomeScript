@@ -11,7 +11,7 @@ echo "--- Global Variables Configuration ---"
 DEFAULT_GLOBAL_PUID=1000
 DEFAULT_GLOBAL_PGID=1000
 DEFAULT_GLOBAL_TZ="Europe/Paris"
-DEFAULT_APP_DATA_BASE_PATH="/home/" # MODIFY THIS if necessary for the default value
+DEFAULT_APP_DATA_BASE_PATH="$HOME/Docker" # MODIFY THIS if necessary for the default value
 
 read -p "Enter Global PUID [${DEFAULT_GLOBAL_PUID}]: " input_puid
 GLOBAL_PUID=${input_puid:-$DEFAULT_GLOBAL_PUID}
