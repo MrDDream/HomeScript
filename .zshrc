@@ -13,7 +13,7 @@ ZSH_THEME="agnoster"
 
 # --- EXEMPLES DE CONFIGURATION ---
 # Décommenter pour activer les plugins (doivent être dans $ZSH/plugins/*)
-plugins=(history docker zsh-syntax-highlighting zsh-autosuggestions)
+plugins=(history docker)
 
 # Décommenter pour activer la correction orthographique des commandes
 # ENABLE_CORRECTION="true"
