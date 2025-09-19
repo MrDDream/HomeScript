@@ -1,4 +1,5 @@
 # Scripts Personnels
+test
 
 Ce dépôt contient une collection de scripts divers pour faciliter l'installation et la gestion d'applications.
 
