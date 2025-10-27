@@ -1,4 +1,4 @@
-```markdown
+
 # HomeScript
 
 A collection of shell scripts to automate common tasks, primarily focused on media server setup and management.
