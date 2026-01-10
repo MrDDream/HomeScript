@@ -21,7 +21,7 @@ fi
 
 # Récupérer la configuration .zshrc personnalisée dans un fichier temporaire
 echo "Téléchargement de la configuration .zshrc personnalisée..."
-wget -O /tmp/zshrc_template https://git.dwcloud.fr/MrDDream/Scripts/raw/branch/main/.zshrc
+wget -O /tmp/zshrc_template https://raw.githubusercontent.com/MrDDream/HomeScript/refs/heads/main/.zshrc
 
 # Adapter le .zshrc pour pointer vers l'installation de /opt
 # Ceci remplace la ligne 'export ZSH="$HOME/.oh-my-zsh"' par la version centralisée
